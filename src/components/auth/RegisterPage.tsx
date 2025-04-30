@@ -79,7 +79,7 @@ const RegisterPage = () => {
   const password = watch("password");
 
   // Calculate password strength whenever password changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (password) {
       calculatePasswordStrength(password);
     }

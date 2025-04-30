@@ -53,6 +53,7 @@ interface ApiTestRequest {
   body: string;
   params: Record<string, string>;
   pathParams: Record<string, string>;
+  contentType: string;
 }
 
 interface ApiTestResponse {
@@ -71,6 +72,96 @@ interface SavedRequest {
 
 const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
+const CONTENT_TYPES = [
+  { value: "application/json", label: "JSON" },
+  { value: "application/x-www-form-urlencoded", label: "URL Encoded" },
+  { value: "multipart/form-data", label: "Form Data" },
+];
+
+const EXAMPLE_TEMPLATES = {
+  "application/json": [
+    {
+      name: "User Login",
+      body: JSON.stringify(
+        {
+          email: "user@example.com",
+          password: "password123",
+        },
+        null,
+        2,
+      ),
+    },
+    {
+      name: "User Registration",
+      body: JSON.stringify(
+        {
+          name: "John Doe",
+          email: "john@example.com",
+          password: "securePassword123",
+          password_confirmation: "securePassword123",
+        },
+        null,
+        2,
+      ),
+    },
+    {
+      name: "Create Post",
+      body: JSON.stringify(
+        {
+          title: "My New Post",
+          content: "This is the content of my post.",
+          tags: ["news", "technology"],
+          published: true,
+        },
+        null,
+        2,
+      ),
+    },
+  ],
+  "application/x-www-form-urlencoded": [
+    {
+      name: "Simple Form",
+      body: "name=John+Doe&email=john%40example.com&message=Hello+world",
+    },
+    {
+      name: "Search Query",
+      body: "query=search+term&page=1&limit=10&sort=relevance",
+    },
+  ],
+  "multipart/form-data": [
+    {
+      name: "File Upload",
+      body:
+        "// For multipart/form-data (file uploads):\n// In a real implementation, you would use FormData API\n// Example structure:\n\n/*\nconst formData = new FormData();\nformData.append('name', 'John Doe');\nformData.append('email', 'john@example.com');\nformData.append('profile_image', fileObject);\nformData.append('documents', fileObject2);\n*/\n\n// For testing purposes, you can use this JSON representation:\n" +
+        JSON.stringify(
+          {
+            name: "John Doe",
+            email: "john@example.com",
+            profile_image: "[Binary File Data]",
+            documents: "[Binary File Data]",
+          },
+          null,
+          2,
+        ),
+    },
+    {
+      name: "Profile Update with Avatar",
+      body:
+        "// For multipart/form-data (file uploads):\n// In a real implementation, you would use FormData API\n// Example structure:\n\n/*\nconst formData = new FormData();\nformData.append('user_id', '12345');\nformData.append('display_name', 'John Doe');\nformData.append('bio', 'Software developer and tech enthusiast');\nformData.append('avatar', fileObject);\n*/\n\n// For testing purposes, you can use this JSON representation:\n" +
+        JSON.stringify(
+          {
+            user_id: "12345",
+            display_name: "John Doe",
+            bio: "Software developer and tech enthusiast",
+            avatar: "[Binary File Data]",
+          },
+          null,
+          2,
+        ),
+    },
+  ],
+};
+
 const DEFAULT_HEADERS = {
   "Content-Type": "application/json",
   Accept: "application/json",
@@ -88,6 +179,7 @@ const ApiTester = () => {
     body: "",
     params: {},
     pathParams: {},
+    contentType: "application/json",
   });
   const [response, setResponse] = useState<ApiTestResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -186,12 +278,52 @@ const ApiTester = () => {
 
       // Add body for non-GET requests
       if (request.method !== "GET" && request.body) {
-        try {
-          // Try to parse as JSON
-          const parsedBody = JSON.parse(request.body);
-          options.body = JSON.stringify(parsedBody);
-        } catch (e) {
-          // If not valid JSON, use as is
+        // Handle different content types
+        if (request.contentType === "application/json") {
+          try {
+            // Try to parse as JSON
+            const parsedBody = JSON.parse(request.body);
+            options.body = JSON.stringify(parsedBody);
+          } catch (e) {
+            // If not valid JSON, use as is
+            options.body = request.body;
+          }
+        } else if (
+          request.contentType === "application/x-www-form-urlencoded"
+        ) {
+          // URL encoded form data is sent as is
+          options.body = request.body;
+        } else if (request.contentType === "multipart/form-data") {
+          // For multipart/form-data, we would normally use FormData
+          // But since we're just simulating it in the textarea, we'll parse the JSON representation
+          try {
+            // Extract the JSON part from the comment block
+            const jsonMatch = request.body.match(/\{[\s\S]*\}/m);
+            if (jsonMatch) {
+              const formData = new FormData();
+              const parsedBody = JSON.parse(jsonMatch[0]);
+
+              // Add each field to the FormData object
+              Object.entries(parsedBody).forEach(([key, value]) => {
+                formData.append(key, String(value));
+              });
+
+              // Remove the Content-Type header as the browser will set it with the boundary
+              const newHeaders = { ...headers };
+              delete newHeaders["Content-Type"];
+              options.headers = newHeaders;
+
+              options.body = formData;
+            } else {
+              // Fallback to using the body as is
+              options.body = request.body;
+            }
+          } catch (e) {
+            // If parsing fails, use as is
+            options.body = request.body;
+          }
+        } else {
+          // Default: use as is
           options.body = request.body;
         }
       }
@@ -286,6 +418,7 @@ const ApiTester = () => {
       body: "",
       params: {},
       pathParams: {},
+      contentType: "application/json",
     });
     setHeaderKeys(Object.keys(DEFAULT_HEADERS));
     setParamKeys([]);
@@ -314,6 +447,7 @@ const ApiTester = () => {
       body: "",
       params: {},
       pathParams,
+      contentType: "application/json",
     });
     setHeaderKeys(Object.keys(DEFAULT_HEADERS));
     setParamKeys([]);
@@ -795,19 +929,90 @@ const ApiTester = () => {
               {request.method !== "GET" && (
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-lg">Request Body</CardTitle>
-                    <CardDescription>
-                      Data to send with the request
-                    </CardDescription>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg">Request Body</CardTitle>
+                        <CardDescription>
+                          Data to send with the request
+                        </CardDescription>
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <Label htmlFor="content-type" className="mb-2 block">
+                          Content Type
+                        </Label>
+                        <Select
+                          value={request.contentType}
+                          onValueChange={(value) => {
+                            // Update Content-Type header when content type changes
+                            const newHeaders = { ...request.headers };
+                            newHeaders["Content-Type"] = value;
+                            setRequest({
+                              ...request,
+                              contentType: value,
+                              headers: newHeaders,
+                            });
+                          }}
+                        >
+                          <SelectTrigger id="content-type">
+                            <SelectValue placeholder="Select content type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CONTENT_TYPES.map((type) => (
+                              <SelectItem key={type.value} value={type.value}>
+                                {type.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex-1">
+                        <Label htmlFor="template" className="mb-2 block">
+                          Example Templates
+                        </Label>
+                        <Select
+                          onValueChange={(value) => {
+                            const templates =
+                              EXAMPLE_TEMPLATES[
+                                request.contentType as keyof typeof EXAMPLE_TEMPLATES
+                              ] || [];
+                            const template = templates.find(
+                              (t) => t.name === value,
+                            );
+                            if (template) {
+                              setRequest({ ...request, body: template.body });
+                            }
+                          }}
+                        >
+                          <SelectTrigger id="template">
+                            <SelectValue placeholder="Select a template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(
+                              EXAMPLE_TEMPLATES[
+                                request.contentType as keyof typeof EXAMPLE_TEMPLATES
+                              ] || []
+                            ).map((template, index) => (
+                              <SelectItem key={index} value={template.name}>
+                                {template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
                     <Textarea
                       value={request.body}
                       onChange={(e) =>
                         setRequest({ ...request, body: e.target.value })
                       }
-                      placeholder="Enter request body (JSON)"
-                      className="font-mono h-[200px]"
+                      placeholder={`Enter request body (${request.contentType})`}
+                      className="font-mono h-[300px]"
                     />
                   </CardContent>
                 </Card>

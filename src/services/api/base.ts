@@ -326,7 +326,28 @@ export class BaseApiService {
       let data: any;
       const contentType = modifiedResponse.headers.get("content-type");
       if (contentType && contentType.includes("application/json")) {
-        data = await modifiedResponse.json();
+        try {
+          data = await modifiedResponse.json();
+        } catch (jsonError) {
+          // If JSON parsing fails, get the raw text to help with debugging
+          const rawText = await modifiedResponse.clone().text();
+          console.error(
+            "JSON parsing failed. Raw response:",
+            rawText.substring(0, 500) + (rawText.length > 500 ? "..." : ""),
+          );
+
+          // Throw a more descriptive error
+          throw new ApiError(
+            `Failed to parse JSON response: ${jsonError instanceof Error ? jsonError.message : "Unknown parsing error"}`,
+            modifiedResponse.status,
+            {
+              rawResponse:
+                rawText.substring(0, 1000) +
+                (rawText.length > 1000 ? "..." : ""),
+            },
+            false,
+          );
+        }
       } else {
         data = await modifiedResponse.text();
       }
