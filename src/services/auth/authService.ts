@@ -64,11 +64,9 @@ class AuthService extends BaseApiService {
    */
   async init(): Promise<void> {
     try {
-      // Only initialize CSRF token if we're using Laravel Sanctum
-      const useSanctum = import.meta.env.VITE_USE_SANCTUM === "true";
-      if (useSanctum) {
-        await tokenService.initCsrfToken();
-      }
+      // Always initialize CSRF token for Laravel
+      console.log("Initializing auth service and CSRF token");
+      await tokenService.initCsrfToken();
     } catch (error) {
       console.warn(
         "CSRF initialization failed, continuing without CSRF protection:",

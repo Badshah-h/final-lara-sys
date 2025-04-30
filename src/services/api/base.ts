@@ -14,6 +14,7 @@ import {
 } from "./config";
 import { apiCache } from "./cache";
 import { getApiUrl, getEndpointDefinition } from "./registry";
+import { tokenService } from "../auth/tokenService";
 
 export class ApiError extends Error {
   status: number;
@@ -128,6 +129,18 @@ export class BaseApiService {
    * Make a POST request
    */
   async post<T>(endpoint: string, data?: any): Promise<T> {
+    // Ensure CSRF token is initialized for POST requests
+    if (CSRF_ENABLED) {
+      try {
+        await tokenService.initCsrfToken();
+      } catch (error) {
+        console.warn(
+          "Failed to initialize CSRF token before POST request:",
+          error,
+        );
+      }
+    }
+
     const url = this.buildUrl(endpoint);
     return this.request<T>(url, {
       method: "POST",
@@ -140,6 +153,18 @@ export class BaseApiService {
    * Make a PUT request
    */
   async put<T>(endpoint: string, data?: any): Promise<T> {
+    // Ensure CSRF token is initialized for PUT requests
+    if (CSRF_ENABLED) {
+      try {
+        await tokenService.initCsrfToken();
+      } catch (error) {
+        console.warn(
+          "Failed to initialize CSRF token before PUT request:",
+          error,
+        );
+      }
+    }
+
     const url = this.buildUrl(endpoint);
     return this.request<T>(url, {
       method: "PUT",
@@ -152,6 +177,18 @@ export class BaseApiService {
    * Make a PATCH request
    */
   async patch<T>(endpoint: string, data?: any): Promise<T> {
+    // Ensure CSRF token is initialized for PATCH requests
+    if (CSRF_ENABLED) {
+      try {
+        await tokenService.initCsrfToken();
+      } catch (error) {
+        console.warn(
+          "Failed to initialize CSRF token before PATCH request:",
+          error,
+        );
+      }
+    }
+
     const url = this.buildUrl(endpoint);
     return this.request<T>(url, {
       method: "PATCH",
@@ -164,6 +201,18 @@ export class BaseApiService {
    * Make a DELETE request
    */
   async delete<T>(endpoint: string): Promise<T> {
+    // Ensure CSRF token is initialized for DELETE requests
+    if (CSRF_ENABLED) {
+      try {
+        await tokenService.initCsrfToken();
+      } catch (error) {
+        console.warn(
+          "Failed to initialize CSRF token before DELETE request:",
+          error,
+        );
+      }
+    }
+
     const url = this.buildUrl(endpoint);
     return this.request<T>(url, {
       method: "DELETE",
@@ -294,6 +343,20 @@ export class BaseApiService {
     requestId: string = Math.random().toString(36).substring(2, 9),
     retryCount: number = 0,
   ): Promise<T> {
+    // Add CSRF token to headers for non-GET requests if enabled
+    if (CSRF_ENABLED && options.method !== "GET") {
+      const csrfToken = tokenService.getCsrfToken();
+      if (csrfToken) {
+        options.headers = {
+          ...options.headers,
+          [CSRF_HEADER_NAME]: csrfToken,
+        };
+      } else {
+        console.warn(
+          `No CSRF token available for ${options.method} request to ${url}`,
+        );
+      }
+    }
     // Always include credentials in cross-origin requests
     options.credentials = "include";
     try {
@@ -354,6 +417,21 @@ export class BaseApiService {
 
       // Handle error responses
       if (!modifiedResponse.ok) {
+        // Check for CSRF token mismatch (419 in Laravel)
+        if (modifiedResponse.status === 419) {
+          console.warn(
+            "CSRF token mismatch detected, attempting to refresh token",
+          );
+          // Try to refresh the CSRF token
+          await tokenService.initCsrfToken();
+
+          // If we haven't exceeded retry count, retry the request with the new token
+          if (retryCount < MAX_RETRIES) {
+            console.log("Retrying request with fresh CSRF token");
+            return this.request<T>(url, options, requestId, retryCount + 1);
+          }
+        }
+
         const apiError = new ApiError(
           data.message || `API error: ${modifiedResponse.status}`,
           modifiedResponse.status,

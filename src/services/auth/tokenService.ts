@@ -53,6 +53,8 @@ class TokenService {
         return this.csrfToken;
       }
 
+      console.log("Initializing CSRF token...");
+
       // Make a request to get the CSRF cookie
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || "http://localhost:8000"}/sanctum/csrf-cookie`,
@@ -71,17 +73,34 @@ class TokenService {
         );
       }
 
+      console.log("CSRF cookie response received, status:", response.status);
+
       // Extract the CSRF token from cookies
       const cookies = document.cookie.split(";");
+      console.log("All cookies:", cookies);
+
+      // Try both XSRF-TOKEN and laravel_session cookies
       const xsrfCookie = cookies.find((cookie) =>
         cookie.trim().startsWith("XSRF-TOKEN="),
       );
+
+      const laravelSessionCookie = cookies.find((cookie) =>
+        cookie.trim().startsWith("laravel_session="),
+      );
+
+      console.log("XSRF cookie found:", !!xsrfCookie);
+      console.log("Laravel session cookie found:", !!laravelSessionCookie);
 
       if (xsrfCookie) {
         // The cookie value is URL encoded, so we need to decode it
         const token = decodeURIComponent(xsrfCookie.split("=")[1]);
         this.setCsrfToken(token);
+        console.log("CSRF token set successfully");
         return token;
+      } else {
+        console.warn(
+          "No XSRF-TOKEN cookie found after sanctum/csrf-cookie request",
+        );
       }
 
       return null;

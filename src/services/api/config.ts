@@ -53,6 +53,6 @@ export const MAX_RETRIES = 3;
 export const RETRY_DELAY = 1000;
 
 // CSRF token settings
-export const CSRF_ENABLED = import.meta.env.VITE_USE_SANCTUM === "true";
+export const CSRF_ENABLED = true; // Always enable CSRF for Laravel
 export const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 export const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
