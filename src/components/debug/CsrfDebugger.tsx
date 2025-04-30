@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { JsonViewer } from "@/components/ui/json-viewer";
 import {
   runCsrfDiagnostics,
   testCsrfEndpoint,
@@ -20,8 +21,77 @@ import { tokenService } from "@/services/auth/tokenService";
 import { API_BASE_URL } from "@/services/api/config";
 
 const CsrfDebugger = () => {
+  // Helper function to format log results as structured JSON
+  const formatResultsAsJson = (results: string[]) => {
+    try {
+      const formattedData: Record<string, any> = {
+        summary: {},
+        logs: [],
+      };
+
+      // Extract key information
+      const apiBaseUrl = results.find((line) => line.includes("API Base URL"));
+      if (apiBaseUrl) {
+        formattedData.summary.apiBaseUrl = apiBaseUrl
+          .split("API Base URL:")[1]
+          ?.trim();
+      }
+
+      const csrfEndpoint = results.find((line) =>
+        line.includes("Making request to:"),
+      );
+      if (csrfEndpoint) {
+        formattedData.summary.csrfEndpoint = csrfEndpoint
+          .split("Making request to:")[1]
+          ?.trim();
+      }
+
+      const responseStatus = results.find((line) =>
+        line.includes("Response status:"),
+      );
+      if (responseStatus) {
+        formattedData.summary.responseStatus = responseStatus
+          .split("Response status:")[1]
+          ?.trim();
+      }
+
+      const xsrfCookie = results.find((line) =>
+        line.includes("XSRF-TOKEN cookie found:"),
+      );
+      if (xsrfCookie) {
+        formattedData.summary.xsrfCookieFound = xsrfCookie.includes("true");
+      }
+
+      // Process all logs with type information
+      results.forEach((line) => {
+        const logMatch = line.match(/\[(info|error|warn)\]\s(.+)/);
+        if (logMatch) {
+          const [, type, message] = logMatch;
+          formattedData.logs.push({
+            type,
+            message,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          formattedData.logs.push({
+            type: "info",
+            message: line,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      });
+
+      setFormattedResults(formattedData);
+    } catch (error) {
+      console.error("Error formatting results as JSON:", error);
+      // Fallback to raw results if formatting fails
+      setFormattedResults(null);
+    }
+  };
+
   const [isRunningTests, setIsRunningTests] = useState(false);
   const [testResults, setTestResults] = useState<string[]>([]);
+  const [formattedResults, setFormattedResults] = useState<any>(null);
   const [csrfToken, setCsrfToken] = useState<string | null>(
     tokenService.getCsrfToken(),
   );
@@ -85,6 +155,9 @@ const CsrfDebugger = () => {
       console.error = originalConsoleError;
       console.warn = originalConsoleWarn;
       setIsRunningTests(false);
+
+      // Format results as structured data for the JsonViewer
+      formatResultsAsJson(testResults);
     }
   };
 
@@ -143,6 +216,9 @@ const CsrfDebugger = () => {
       console.error = originalConsoleError;
       console.warn = originalConsoleWarn;
       setIsRunningTests(false);
+
+      // Format results as structured data for the JsonViewer
+      formatResultsAsJson(testResults);
     }
   };
 
@@ -197,22 +273,14 @@ const CsrfDebugger = () => {
 
               <div>
                 <h3 className="text-lg font-medium mb-2">Diagnostic Results</h3>
-                <ScrollArea className="h-[300px] w-full border rounded-md p-4">
-                  <pre className="text-xs font-mono whitespace-pre-wrap">
-                    {testResults.map((result, index) => {
-                      const isError = result.includes("[error]");
-                      const isWarning = result.includes("[warn]");
-                      return (
-                        <div
-                          key={index}
-                          className={`py-1 ${isError ? "text-red-500" : isWarning ? "text-yellow-500" : ""}`}
-                        >
-                          {result}
-                        </div>
-                      );
-                    })}
-                  </pre>
-                </ScrollArea>
+                <div className="mb-4">
+                  <JsonViewer
+                    data={formattedResults || testResults.join("\n")}
+                    height="300px"
+                    title="CSRF Diagnostics"
+                    showRawToggle={true}
+                  />
+                </div>
               </div>
             </>
           )}
