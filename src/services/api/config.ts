@@ -7,23 +7,38 @@ const getApiBaseUrl = (): string => {
   const env = import.meta.env.MODE || "development";
   const apiUrl = import.meta.env.VITE_API_URL;
 
+  // Log the environment and API URL for debugging
+  console.log(
+    `API Config - Environment: ${env}, API URL from env: ${apiUrl || "not set"}`,
+  );
+
   // If API URL is explicitly set, use it
   if (apiUrl) {
-    return apiUrl.endsWith("/api") ? apiUrl : `${apiUrl}/api`;
+    const formattedUrl = apiUrl.endsWith("/api") ? apiUrl : `${apiUrl}/api`;
+    console.log(`Using configured API URL: ${formattedUrl}`);
+    return formattedUrl;
   }
 
   // Otherwise, use environment-specific defaults
+  let defaultUrl;
   switch (env) {
     case "production":
-      return "https://api.yourdomain.com/api";
+      defaultUrl = "https://api.yourdomain.com/api";
+      break;
     case "staging":
-      return "https://staging-api.yourdomain.com/api";
+      defaultUrl = "https://staging-api.yourdomain.com/api";
+      break;
     case "test":
-      return "http://localhost:8000/api";
+      defaultUrl = "http://localhost:8000/api";
+      break;
     case "development":
     default:
-      return "http://localhost:8000/api";
+      defaultUrl = "http://localhost:8000/api";
+      break;
   }
+
+  console.log(`Using default API URL for ${env} environment: ${defaultUrl}`);
+  return defaultUrl;
 };
 
 // Base API URL - points to Laravel backend API

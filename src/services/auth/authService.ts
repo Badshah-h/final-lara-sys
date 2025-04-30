@@ -66,13 +66,26 @@ class AuthService extends BaseApiService {
     try {
       // Always initialize CSRF token for Laravel
       console.log("Initializing auth service and CSRF token");
-      await tokenService.initCsrfToken();
+      const token = await tokenService.initCsrfToken();
+
+      if (token) {
+        console.log("Auth service initialized with CSRF token");
+      } else {
+        console.warn("Auth service initialized without CSRF token");
+      }
     } catch (error) {
       console.warn(
         "CSRF initialization failed, continuing without CSRF protection:",
         error,
       );
       // Continue without CSRF protection
+
+      // In development, we can continue with a simulated token
+      if (import.meta.env.DEV) {
+        console.warn("Development environment: Creating emergency CSRF token");
+        const emergencyToken = "emergency-csrf-token-" + Date.now();
+        tokenService.setCsrfToken(emergencyToken);
+      }
     }
   }
 
