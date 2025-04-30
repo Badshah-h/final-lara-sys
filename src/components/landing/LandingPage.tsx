@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,6 +24,7 @@ import {
   LineChart,
   MessageSquare,
   Palette,
+  ServerCog,
   Settings,
   Shield,
   Sparkles,
@@ -31,7 +32,8 @@ import {
 } from "lucide-react";
 
 const LandingPage = () => {
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeView, setActiveView] = useState("dashboard"); // Default to "dashboard" view
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,12 +81,32 @@ const LandingPage = () => {
             <div className="hidden sm:flex items-center gap-2">
               <Link to="/login">
                 <Button variant="outline" size="sm">
-                  Log In
+                  Login
                 </Button>
               </Link>
               <Link to="/register">
                 <Button size="sm">Sign Up</Button>
               </Link>
+
+              {/*Temporary API Tester and CSRF Debugger */}
+              <Button
+                  variant={activeView === "api-tester" ? "secondary" : "ghost"}
+                  className="w-full justify-start"
+                  onClick={() => navigate("/api-tester")}
+                >
+                  <Code className="mr-2 h-4 w-4" />
+                  API Tester
+                </Button>
+              <Button
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => navigate("/csrf-debug")}
+                >
+                  <ServerCog className="mr-2 h-4 w-4" />
+                  CSRF Debugger
+                </Button>
+              {/* End of Temporary API Tester and CSRF Debugger */}
+
             </div>
             <Button variant="ghost" size="icon" className="md:hidden">
               <svg
