@@ -174,7 +174,18 @@ class AuthService extends BaseApiService {
 
 export const authService = new AuthService();
 
-// Initialize the auth service
-authService.init().catch((error) => {
-  console.error("Failed to initialize auth service:", error);
-});
+// Initialize the auth service with a timeout to prevent blocking
+const initTimeout = setTimeout(() => {
+  console.warn("Auth service initialization timed out after 5 seconds");
+}, 5000);
+
+authService
+  .init()
+  .then(() => {
+    clearTimeout(initTimeout);
+    console.log("Auth service initialized successfully");
+  })
+  .catch((error) => {
+    clearTimeout(initTimeout);
+    console.error("Failed to initialize auth service:", error);
+  });
