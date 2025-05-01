@@ -337,9 +337,9 @@ export class BaseApiService {
   }
 
   /**
-   * Make a request with error handling and retries
+   * Make a request with timeout, retries, and error handling
    */
-  protected async request<T>(
+  private async request<T>(
     url: string,
     options: RequestInit,
     requestId: string = Math.random().toString(36).substring(2, 9),
@@ -350,13 +350,11 @@ export class BaseApiService {
       window.location.pathname.includes("/tempobook/") ||
       window.location.pathname.includes("/storyboards/");
 
-    // In development or storyboard mode, provide mock data for testing
-    if (import.meta.env.DEV && isStoryboard && retryCount === 0) {
-      console.log(`Storyboard detected, may use mock data for ${url}`);
-      // Continue with the request, but fallback to mock data on failure
-      // return this.getMockResponse(url, options.method || "GET") as T;
+    // In storyboard context, return mock data instead of making real API calls
+    if (isStoryboard) {
+      console.log(`[Storyboard] Mock API request to: ${url}`);
+      return this.getMockResponse(url, options.method || "GET") as T;
     }
-
     // Check if the request requires authentication by examining the URL
     const isAuthEndpoint =
       url.includes("/login") ||
