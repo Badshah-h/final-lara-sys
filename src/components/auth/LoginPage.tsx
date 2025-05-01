@@ -61,7 +61,8 @@ const LoginPage = () => {
 
     try {
       // Use the login function from AuthContext
-      const success = await login(data.email, data.password, data.remember);
+      const result = await login(data.email, data.password, data.remember);
+      const success = typeof result === "boolean" ? result : true;
 
       if (success) {
         // Show success message

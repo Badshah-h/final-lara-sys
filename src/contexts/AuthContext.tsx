@@ -21,11 +21,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (
-    email: string,
-    password: string,
-    remember?: boolean,
-  ) => Promise<boolean>;
+  login: (email: string, password: string, remember?: boolean) => Promise<any>;
   register: (
     name: string,
     email: string,
@@ -113,7 +109,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     email: string,
     password: string,
     remember: boolean = false,
-  ): Promise<boolean> => {
+  ): Promise<any> => {
     try {
       // Get CSRF cookie first
       await getCsrfCookie();
@@ -126,18 +122,35 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       });
 
       // Store token
-      const token = response.data.token || response.data.access_token;
+      const token =
+        response.data.data?.token ||
+        response.data.data?.access_token ||
+        response.data.token ||
+        response.data.access_token;
+
       if (token) {
         localStorage.setItem("token", token);
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       }
 
-      // Get user data
-      const userResponse = await axios.get(`${API_BASE_URL}/user`);
-      setUser(userResponse.data);
-      setIsAuthenticated(true);
+      // Set user data directly from the response if available
+      if (response.data.data?.user) {
+        setUser(response.data.data.user);
+        setIsAuthenticated(true);
+        return response.data;
+      }
 
-      return true;
+      // Otherwise try to get user data separately
+      try {
+        const userResponse = await axios.get(`${API_BASE_URL}/user`);
+        setUser(userResponse.data);
+        setIsAuthenticated(true);
+      } catch (userError) {
+        console.error("Failed to fetch user data:", userError);
+        // Still return true since login was successful
+      }
+
+      return response.data;
     } catch (error) {
       console.error("Login failed:", error);
       return false;
