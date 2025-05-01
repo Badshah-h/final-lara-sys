@@ -3,7 +3,12 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useApi } from "@/hooks/useApi";
-import { authService, type User, type LoginCredentials, type RegisterData } from "@/services/auth/authService";
+import {
+  authService,
+  type User,
+  type LoginCredentials,
+  type RegisterData,
+} from "@/services/auth/authService";
 import { ApiResponse } from "@/services/api/types";
 
 interface AuthState {
@@ -34,7 +39,7 @@ export function useAuth() {
           isLoading: false,
         });
       },
-    }
+    },
   );
 
   const {
@@ -51,25 +56,22 @@ export function useAuth() {
           isLoading: false,
         });
       },
-    }
+    },
   );
 
   const {
     isLoading: isLoggingOut,
     error: logoutError,
     execute: executeLogout,
-  } = useApi<ApiResponse<null>, []>(
-    authService.logout.bind(authService),
-    {
-      onSuccess: () => {
-        setAuthState({
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
-      },
-    }
-  );
+  } = useApi<ApiResponse<null>, []>(authService.logout.bind(authService), {
+    onSuccess: () => {
+      setAuthState({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      });
+    },
+  });
 
   // Fetch current user on mount
   const fetchCurrentUser = useCallback(async () => {
@@ -89,7 +91,7 @@ export function useAuth() {
         });
       }
     } else {
-      setAuthState(prev => ({ ...prev, isLoading: false }));
+      setAuthState((prev) => ({ ...prev, isLoading: false }));
     }
   }, [authState.isAuthenticated]);
 
@@ -100,18 +102,24 @@ export function useAuth() {
   // Wrapper functions for better error handling
   const login = async (credentials: LoginCredentials) => {
     try {
-      await executeLogin(credentials);
+      const response = await executeLogin(credentials);
+      // Ensure we have the latest auth state after login
+      await fetchCurrentUser();
+      return response;
     } catch (error) {
-      setAuthState(prev => ({ ...prev, isAuthenticated: false, user: null }));
+      setAuthState((prev) => ({ ...prev, isAuthenticated: false, user: null }));
       throw error;
     }
   };
 
   const register = async (data: RegisterData) => {
     try {
-      await executeRegister(data);
+      const response = await executeRegister(data);
+      // Ensure we have the latest auth state after registration
+      await fetchCurrentUser();
+      return response;
     } catch (error) {
-      setAuthState(prev => ({ ...prev, isAuthenticated: false, user: null }));
+      setAuthState((prev) => ({ ...prev, isAuthenticated: false, user: null }));
       throw error;
     }
   };
@@ -133,7 +141,8 @@ export function useAuth() {
   return {
     user: authState.user,
     isAuthenticated: authState.isAuthenticated,
-    isLoading: authState.isLoading || isLoggingIn || isRegistering || isLoggingOut,
+    isLoading:
+      authState.isLoading || isLoggingIn || isRegistering || isLoggingOut,
     login,
     register,
     logout,
@@ -142,4 +151,4 @@ export function useAuth() {
     logoutError,
     refreshUser: fetchCurrentUser,
   };
-} 
+}

@@ -35,24 +35,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        if (authService.isAuthenticated()) {
+        // First check if token exists before validating it
+        const hasToken = tokenService.getToken() !== null;
+
+        if (hasToken) {
+          console.log("Token found, validating and fetching user data");
+          // Add a small delay to ensure token is properly initialized
+          // This helps avoid race conditions during app initialization
+          await new Promise((resolve) => setTimeout(resolve, 100));
+
           try {
+            // Attempt to refresh token if needed before getting user data
+            if (tokenService.isTokenExpired(300)) {
+              // 5 minutes threshold
+              console.log("Token is expiring soon, attempting refresh");
+              await authService.refreshToken();
+            }
+
             const response = await authService.getCurrentUser();
             setUser(response.data);
+            console.log("User data fetched successfully", response.data);
           } catch (apiError: any) {
             if (apiError.status === 401) {
               console.warn("Token validation failed - clearing invalid token");
-              authService.logout().catch((e) => console.error("Error during logout:", e));
+              // Don't call full logout here as it redirects, just clear the token
+              tokenService.clearToken();
               setUser(null); // Ensure user state is cleared
             } else {
               console.error("Error fetching user data:", apiError);
-              setError(apiError instanceof Error ? apiError : new Error("Failed to fetch user"));
+              setError(
+                apiError instanceof Error
+                  ? apiError
+                  : new Error("Failed to fetch user"),
+              );
             }
           }
+        } else {
+          console.log("No authentication token found");
+          setUser(null);
         }
       } catch (err) {
         console.error("Authentication check failed:", err);
-        setError(err instanceof Error ? err : new Error("Authentication check failed"));
+        setError(
+          err instanceof Error ? err : new Error("Authentication check failed"),
+        );
       } finally {
         setIsLoading(false);
       }
@@ -66,7 +92,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // Clean up the interval on component unmount
     return () => clearInterval(intervalId);
-
   }, []); // This will run once when the component mounts
 
   const login = async (email: string, password: string, remember = false) => {
@@ -116,7 +141,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // Set the user in state
       setUser(response.data.user);
-      console.log("Registration successful, user data received:", response.data.user);
+      console.log(
+        "Registration successful, user data received:",
+        response.data.user,
+      );
 
       return response;
     } catch (err) {
@@ -154,8 +182,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return user.permissions.includes(permission);
   };
 
-  // Compute isAuthenticated based on both user existence and token validity
-  const isAuthenticated = !!user && authService.isAuthenticated();
+  // Compute isAuthenticated based on user existence
+  // We already validate the token when fetching the user, so we don't need to check it again
+  // This prevents race conditions where token is valid but not yet fully processed
+  const isAuthenticated = !!user;
 
   return (
     <AuthContext.Provider

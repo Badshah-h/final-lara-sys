@@ -67,7 +67,7 @@ class AuthService extends BaseApiService {
       // Handle 401 Unauthorized errors
       if (error.status === 401) {
         console.warn(
-          "Authentication error detected, clearing token and redirecting to login"
+          "Authentication error detected, clearing token and redirecting to login",
         );
         // Clear the token
         tokenService.clearToken();
@@ -89,17 +89,34 @@ class AuthService extends BaseApiService {
     try {
       // Always initialize CSRF token for Laravel
       console.log("Initializing auth service and CSRF token");
-      const token = await tokenService.initCsrfToken();
+
+      // Check if we already have a CSRF token before trying to get a new one
+      let token = tokenService.getCsrfToken();
+
+      if (!token) {
+        // Only try to get a new token if we don't already have one
+        token = await tokenService.initCsrfToken();
+      }
 
       if (token) {
         console.log("Auth service initialized with CSRF token");
       } else {
         console.warn("Auth service initialized without CSRF token");
+
+        // Try one more time with a delay
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        token = await tokenService.initCsrfToken();
+
+        if (token) {
+          console.log("Auth service initialized with CSRF token after retry");
+        } else {
+          console.warn("Auth service failed to get CSRF token after retry");
+        }
       }
     } catch (error) {
       console.warn(
         "CSRF initialization failed, continuing without CSRF protection:",
-        error
+        error,
       );
       // Continue without CSRF protection
 
@@ -119,7 +136,7 @@ class AuthService extends BaseApiService {
    * @returns API response with token and user data
    */
   async login(
-    credentials: LoginCredentials
+    credentials: LoginCredentials,
   ): Promise<ApiResponse<{ token: string; user: User }>> {
     // Ensure CSRF token is initialized before login
     await this.init();
@@ -153,7 +170,7 @@ class AuthService extends BaseApiService {
    * @returns API response with token and user data
    */
   async register(
-    data: RegisterData
+    data: RegisterData,
   ): Promise<ApiResponse<{ token: string; user: User }>> {
     // Ensure CSRF token is initialized before registration
     await this.init();
@@ -173,7 +190,7 @@ class AuthService extends BaseApiService {
         if (decoded && decoded.exp) {
           const expiryDate = new Date(decoded.exp * 1000);
           console.log(
-            `Registration token will expire at: ${expiryDate.toLocaleString()}`
+            `Registration token will expire at: ${expiryDate.toLocaleString()}`,
           );
         }
       }
@@ -283,9 +300,8 @@ class AuthService extends BaseApiService {
       this.setAuthToken(currentToken);
 
       // Make a request to the refresh endpoint
-      const response = await this.post<ApiResponse<{ token: string }>>(
-        "/auth/refresh"
-      );
+      const response =
+        await this.post<ApiResponse<{ token: string }>>("/auth/refresh");
 
       // If successful, update the token
       if (response.data?.token) {

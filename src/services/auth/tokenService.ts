@@ -34,7 +34,7 @@ class TokenService {
       sessionStorage.removeItem(`${TOKEN_KEY}_remember`);
 
       console.log(
-        "Token stored in localStorage with remember me (persists after browser close)"
+        "Token stored in localStorage with remember me (persists after browser close)",
       );
     } else {
       // Store in sessionStorage for session-only persistence
@@ -48,7 +48,7 @@ class TokenService {
       localStorage.removeItem(`${TOKEN_KEY}_remember`);
 
       console.log(
-        "Token stored in sessionStorage (cleared when browser is closed)"
+        "Token stored in sessionStorage (cleared when browser is closed)",
       );
     }
 
@@ -66,13 +66,24 @@ class TokenService {
   getToken(): string | null {
     // Check localStorage first (for remembered sessions)
     let token = localStorage.getItem(TOKEN_KEY);
+    let sessionToken = sessionStorage.getItem(TOKEN_KEY);
 
-    // If not in localStorage, check sessionStorage
-    if (!token) {
-      token = sessionStorage.getItem(TOKEN_KEY);
+    // If we have both tokens (which shouldn't happen but just in case),
+    // use the one that was created most recently
+    if (token && sessionToken) {
+      const localCreated = localStorage.getItem(`${TOKEN_KEY}_created`);
+      const sessionCreated = sessionStorage.getItem(`${TOKEN_KEY}_created`);
+
+      if (localCreated && sessionCreated) {
+        // Use the most recently created token
+        return parseInt(localCreated) > parseInt(sessionCreated)
+          ? token
+          : sessionToken;
+      }
     }
 
-    return token;
+    // If only one exists, return it
+    return token || sessionToken || null;
   }
 
   /**
@@ -147,8 +158,8 @@ class TokenService {
           if (tokenAge > maxAge) {
             console.warn(
               `Token is older than 24 hours (${Math.round(
-                tokenAge / 3600
-              )} hours)`
+                tokenAge / 3600,
+              )} hours)`,
             );
             return true;
           }
@@ -173,7 +184,7 @@ class TokenService {
           console.warn(`Token is expired (${-timeUntilExpiry} seconds ago)`);
         } else {
           console.warn(
-            `Token will expire soon (in ${timeUntilExpiry} seconds)`
+            `Token will expire soon (in ${timeUntilExpiry} seconds)`,
           );
         }
       }
@@ -238,10 +249,20 @@ class TokenService {
     try {
       // Check if we already have a CSRF token
       if (this.csrfToken) {
+        console.log("Using existing CSRF token");
         return this.csrfToken;
       }
 
       console.log("Initializing CSRF token...");
+
+      // Check if there's already an XSRF-TOKEN cookie
+      const existingCookie = this.getXsrfCookieFromDocument();
+      if (existingCookie) {
+        console.log("Found existing XSRF-TOKEN cookie, using it");
+        const token = decodeURIComponent(existingCookie.split("=")[1]);
+        this.setCsrfToken(token);
+        return token;
+      }
 
       // Get the API URL from config
       const apiBaseUrl =
@@ -256,7 +277,7 @@ class TokenService {
         !apiBaseUrl.includes(window.location.hostname)
       ) {
         console.log(
-          "Development environment detected with cross-domain API. Using simulated CSRF token."
+          "Development environment detected with cross-domain API. Using simulated CSRF token.",
         );
         const simulatedToken = "dev-csrf-token-" + Date.now();
         this.setCsrfToken(simulatedToken);
@@ -269,7 +290,13 @@ class TokenService {
 
       try {
         // Make a request to get the CSRF cookie
-        const response = await fetch(`${apiBaseUrl}/sanctum/csrf-cookie`, {
+        const csrfUrl = apiBaseUrl.endsWith("/api")
+          ? `${apiBaseUrl.substring(0, apiBaseUrl.length - 4)}/sanctum/csrf-cookie`
+          : `${apiBaseUrl}/sanctum/csrf-cookie`;
+
+        console.log("Fetching CSRF token from:", csrfUrl);
+
+        const response = await fetch(csrfUrl, {
           method: "GET",
           credentials: "include", // Important: include cookies
           headers: {
@@ -284,7 +311,7 @@ class TokenService {
 
         if (!response.ok) {
           console.error(
-            `CSRF token fetch failed with status: ${response.status} ${response.statusText}`
+            `CSRF token fetch failed with status: ${response.status} ${response.statusText}`,
           );
           // Try to get response body for more details
           try {
@@ -294,26 +321,19 @@ class TokenService {
             console.error("Could not read error response body");
           }
           throw new Error(
-            `Failed to fetch CSRF token: ${response.status} ${response.statusText}`
+            `Failed to fetch CSRF token: ${response.status} ${response.statusText}`,
           );
         }
 
         console.log("CSRF cookie response received, status:", response.status);
 
         // Extract the CSRF token from cookies
-        const cookies = document.cookie.split(";");
-        console.log("All cookies:", cookies);
+        const xsrfCookie = this.getXsrfCookieFromDocument();
+        const laravelSessionCookie = document.cookie
+          .split(";")
+          .find((cookie) => cookie.trim().startsWith("laravel_session="));
 
-        // Try both XSRF-TOKEN and laravel_session cookies
-        const xsrfCookie = cookies.find((cookie) =>
-          cookie.trim().startsWith("XSRF-TOKEN=")
-        );
-
-        const laravelSessionCookie = cookies.find((cookie) =>
-          cookie.trim().startsWith("laravel_session=")
-        );
-
-        console.log("XSRF cookie found:", !!xsrfCookie);
+        console.log("XSRF cookie found after request:", !!xsrfCookie);
         console.log("Laravel session cookie found:", !!laravelSessionCookie);
 
         if (xsrfCookie) {
@@ -324,14 +344,14 @@ class TokenService {
           return token;
         } else {
           console.warn(
-            "No XSRF-TOKEN cookie found after sanctum/csrf-cookie request"
+            "No XSRF-TOKEN cookie found after sanctum/csrf-cookie request",
           );
 
           // If we're in development and no XSRF token was found, but the request was successful,
           // we'll create a simulated token to allow development to continue
           if (import.meta.env.DEV) {
             console.log(
-              "Development environment: Creating simulated CSRF token"
+              "Development environment: Creating simulated CSRF token",
             );
             const simulatedToken = "dev-csrf-token-" + Date.now();
             this.setCsrfToken(simulatedToken);
@@ -354,7 +374,7 @@ class TokenService {
       // In development, provide a fallback token to allow work to continue
       if (import.meta.env.DEV) {
         console.warn(
-          "Development environment: Using fallback CSRF token due to error"
+          "Development environment: Using fallback CSRF token due to error",
         );
         const fallbackToken = "fallback-csrf-token-" + Date.now();
         this.setCsrfToken(fallbackToken);
@@ -363,6 +383,14 @@ class TokenService {
 
       return null;
     }
+  }
+
+  /**
+   * Helper method to get XSRF cookie from document
+   */
+  private getXsrfCookieFromDocument(): string | undefined {
+    const cookies = document.cookie.split(";");
+    return cookies.find((cookie) => cookie.trim().startsWith("XSRF-TOKEN="));
   }
 }
 
