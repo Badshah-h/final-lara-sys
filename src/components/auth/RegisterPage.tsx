@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import AuthLayout from "./AuthLayout";
@@ -14,11 +13,10 @@ import {
   Check,
   Github,
   Mail,
-  User,
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { authService } from "@/services/auth/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -50,6 +48,9 @@ const registerSchema = z
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
+  const { register: registerUser } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -122,23 +123,29 @@ const RegisterPage = () => {
     setIsLoading(true);
 
     try {
-      await authService.register({
-        name: data.fullName,
-        email: data.email,
-        password: data.password,
-        password_confirmation: data.confirmPassword,
-      });
-      setRegisterSuccess(true);
-      // Redirect after a short delay to show success message
-      setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1500);
+      const success = await registerUser(
+        data.fullName,
+        data.email,
+        data.password,
+        data.confirmPassword,
+      );
+
+      if (success) {
+        setRegisterSuccess(true);
+        // Redirect after a short delay to show success message
+        setTimeout(() => {
+          navigate("/dashboard");
+        }, 1500);
+      } else {
+        setApiError("Registration failed. Please try again.");
+      }
     } catch (error: any) {
       console.error("Registration failed:", error);
       setApiError(
         error.response?.data?.message ||
           "Registration failed. Please try again.",
       );
+    } finally {
       setIsLoading(false);
     }
   };

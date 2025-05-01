@@ -1,97 +1,226 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import axios from 'axios'
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import axios from "axios";
+import { API_BASE_URL } from "@/services/api/config";
 
-const AuthContext = createContext({
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  roles?: string[];
+  permissions?: string[];
+  [key: string]: any;
+}
+
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  login: (
+    email: string,
+    password: string,
+    remember?: boolean,
+  ) => Promise<boolean>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    passwordConfirmation: string,
+  ) => Promise<boolean>;
+  logout: () => Promise<void>;
+  hasRole: (role: string) => boolean;
+  hasPermission: (permission: string) => boolean;
+}
+
+const AuthContext = createContext<AuthContextType>({
   user: null,
-  loading: true,
-  login: async (email: string, password: string) => false,
-  register: async (name: string, email: string, password: string, password_confirmation: string) => false,
-  logout: async () => {}
-})
+  isAuthenticated: false,
+  isLoading: true,
+  login: async () => false,
+  register: async () => false,
+  logout: async () => {},
+  hasRole: () => false,
+  hasPermission: () => false,
+});
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
+export const AuthProvider = ({ children }: AuthProviderProps) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  // Initialize axios with credentials
+  useEffect(() => {
+    axios.defaults.withCredentials = true;
+  }, []);
+
+  // Load user on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const token = localStorage.getItem('token')
-        if (token) {
-          axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-          const { data } = await axios.get('/api/user')
-          setUser(data)
+        const token = localStorage.getItem("token");
+        if (!token) {
+          setIsLoading(false);
+          return;
         }
-      } catch (err) {
-        console.error('Failed to load user', err)
-        localStorage.removeItem('token')
+
+        // Set authorization header
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        // Get user data
+        const response = await axios.get(`${API_BASE_URL}/user`);
+        setUser(response.data);
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error("Failed to load user:", error);
+        localStorage.removeItem("token");
+        delete axios.defaults.headers.common["Authorization"];
       } finally {
-        setLoading(false)
+        setIsLoading(false);
       }
-    }
+    };
 
-    loadUser()
-  }, [])
+    loadUser();
+  }, []);
 
-  const login = async (email, password) => {
+  // Get CSRF cookie
+  const getCsrfCookie = async () => {
     try {
-      // First get CSRF cookie
-      await axios.get('/sanctum/csrf-cookie')
-      
-      // Then login
-      const { data } = await axios.post('/api/login', { email, password })
-      localStorage.setItem('token', data.access_token)
-      axios.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`
-      
+      // Extract the base URL without the /api suffix
+      const baseUrl = API_BASE_URL.endsWith("/api")
+        ? API_BASE_URL.substring(0, API_BASE_URL.length - 4)
+        : API_BASE_URL;
+
+      await axios.get(`${baseUrl}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to get CSRF cookie:", error);
+      return false;
+    }
+  };
+
+  const login = async (
+    email: string,
+    password: string,
+    remember: boolean = false,
+  ): Promise<boolean> => {
+    try {
+      // Get CSRF cookie first
+      await getCsrfCookie();
+
+      // Attempt login
+      const response = await axios.post(`${API_BASE_URL}/login`, {
+        email,
+        password,
+        remember,
+      });
+
+      // Store token
+      const token = response.data.token || response.data.access_token;
+      if (token) {
+        localStorage.setItem("token", token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      }
+
       // Get user data
-      const userResponse = await axios.get('/api/user')
-      setUser(userResponse.data)
-      
-      return true
-    } catch (err) {
-      console.error('Login failed', err)
-      return false
-    }
-  }
+      const userResponse = await axios.get(`${API_BASE_URL}/user`);
+      setUser(userResponse.data);
+      setIsAuthenticated(true);
 
-  const register = async (name, email, password, password_confirmation) => {
-    try {
-      await axios.get('/sanctum/csrf-cookie')
-      const { data } = await axios.post('/api/register', { 
-        name, 
-        email, 
-        password, 
-        password_confirmation 
-      })
-      localStorage.setItem('token', data.access_token)
-      axios.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`
-      
-      const userResponse = await axios.get('/api/user')
-      setUser(userResponse.data)
-      
-      return true
-    } catch (err) {
-      console.error('Registration failed', err)
-      return false
+      return true;
+    } catch (error) {
+      console.error("Login failed:", error);
+      return false;
     }
-  }
+  };
 
-  const logout = async () => {
+  const register = async (
+    name: string,
+    email: string,
+    password: string,
+    passwordConfirmation: string,
+  ): Promise<boolean> => {
     try {
-      await axios.post('/api/logout')
-      localStorage.removeItem('token')
-      delete axios.defaults.headers.common['Authorization']
-      setUser(null)
-    } catch (err) {
-      console.error('Logout failed', err)
+      // Get CSRF cookie first
+      await getCsrfCookie();
+
+      // Attempt registration
+      const response = await axios.post(`${API_BASE_URL}/register`, {
+        name,
+        email,
+        password,
+        password_confirmation: passwordConfirmation,
+      });
+
+      // Store token
+      const token = response.data.token || response.data.access_token;
+      if (token) {
+        localStorage.setItem("token", token);
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      }
+
+      // Get user data
+      const userResponse = await axios.get(`${API_BASE_URL}/user`);
+      setUser(userResponse.data);
+      setIsAuthenticated(true);
+
+      return true;
+    } catch (error) {
+      console.error("Registration failed:", error);
+      return false;
     }
-  }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      await axios.post(`${API_BASE_URL}/logout`);
+    } catch (error) {
+      console.error("Logout API call failed:", error);
+    } finally {
+      // Always clear local state even if API call fails
+      localStorage.removeItem("token");
+      delete axios.defaults.headers.common["Authorization"];
+      setUser(null);
+      setIsAuthenticated(false);
+    }
+  };
+
+  const hasRole = (role: string): boolean => {
+    if (!user || !user.roles) return false;
+    return user.roles.includes(role);
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission);
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        login,
+        register,
+        logout,
+        hasRole,
+        hasPermission,
+      }}
+    >
       {children}
     </AuthContext.Provider>
-  )
-}
+  );
+};
 
-export const useAuth = () => useContext(AuthContext)
+export const useAuth = () => useContext(AuthContext);

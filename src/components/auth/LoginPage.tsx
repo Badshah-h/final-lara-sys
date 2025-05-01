@@ -61,18 +61,23 @@ const LoginPage = () => {
 
     try {
       // Use the login function from AuthContext
-      await login(data.email, data.password, data.remember);
+      const success = await login(data.email, data.password, data.remember);
 
-      // Show success message
-      setFormSuccess("Login successful! Redirecting...");
+      if (success) {
+        // Show success message
+        setFormSuccess("Login successful! Redirecting...");
 
-      // Use React Router for navigation after a short delay
-      setTimeout(() => {
-        navigate(from, { replace: true });
-      }, 1000);
+        // Use React Router for navigation after a short delay
+        setTimeout(() => {
+          navigate(from, { replace: true });
+        }, 1000);
+      } else {
+        setFormError("Invalid email or password. Please try again.");
+      }
     } catch (error) {
       console.error("Login failed:", error);
-      setFormError("Invalid email or password. Please try again.");
+      setFormError("An error occurred during login. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };
