@@ -62,10 +62,22 @@ export function useUsers() {
 
     try {
       const response = await fetchUsersApi(queryParams);
-      if (response?.data && isMountedRef.current) {
-        setUsers(response.data);
-        setTotalUsers(response.meta?.total || 0);
-        setCurrentPage(response.meta?.current_page || 1);
+      if (isMountedRef.current) {
+        // Handle both real API responses and mock data for development
+        if (response?.data) {
+          setUsers(response.data);
+          setTotalUsers(response.meta?.total || response.data.length || 0);
+          setCurrentPage(response.meta?.current_page || 1);
+        } else if (Array.isArray(response)) {
+          // Fallback for mock data during development
+          setUsers(response);
+          setTotalUsers(response.length);
+          setCurrentPage(1);
+        } else {
+          // Empty response
+          setUsers([]);
+          setTotalUsers(0);
+        }
       }
     } catch (error) {
       console.error("Error fetching users:", error);

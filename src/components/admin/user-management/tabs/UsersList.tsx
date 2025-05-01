@@ -91,6 +91,11 @@ const UsersList = () => {
     fetchUsers: refreshUsers,
   } = useUsers();
 
+  // Debug logging to help identify issues
+  useEffect(() => {
+    console.log("Users data state:", { users, isLoading, error });
+  }, [users, isLoading, error]);
+
   // Get roles data
   const { roles, isLoading: isLoadingRoles, error: rolesError } = useRoles();
 
