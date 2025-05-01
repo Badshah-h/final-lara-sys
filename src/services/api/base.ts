@@ -67,10 +67,18 @@ export class BaseApiService {
     };
     // Also set it in axios defaults for consistency
     if (typeof window !== "undefined") {
-      const axios = window.axios || require("axios").default;
-      if (axios && axios.defaults) {
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      }
+      // Import axios directly instead of using require
+      import("axios")
+        .then((axiosModule) => {
+          const axiosInstance = axiosModule.default;
+          if (axiosInstance && axiosInstance.defaults) {
+            axiosInstance.defaults.headers.common["Authorization"] =
+              `Bearer ${token}`;
+          }
+        })
+        .catch((err) => {
+          console.error("Error importing axios:", err);
+        });
     }
   }
 

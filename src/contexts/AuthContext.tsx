@@ -179,19 +179,41 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         password_confirmation: passwordConfirmation,
       });
 
-      // Store token
-      const token = response.data.token || response.data.access_token;
+      // Store token - check in both response.data and response.data.data
+      const token =
+        response.data.data?.token ||
+        response.data.data?.access_token ||
+        response.data.token ||
+        response.data.access_token;
+
       if (token) {
         localStorage.setItem("token", token);
         axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+
+        // Set user data directly from the response if available
+        if (response.data.data?.user) {
+          setUser(response.data.data.user);
+          setIsAuthenticated(true);
+          return true;
+        }
+
+        // Otherwise try to get user data separately
+        try {
+          const userResponse = await axios.get(`${API_BASE_URL}/user`);
+          setUser(userResponse.data);
+          setIsAuthenticated(true);
+          return true;
+        } catch (userError) {
+          console.error(
+            "Failed to fetch user data after registration:",
+            userError,
+          );
+          // Still return true since registration was successful
+          return true;
+        }
       }
 
-      // Get user data
-      const userResponse = await axios.get(`${API_BASE_URL}/user`);
-      setUser(userResponse.data);
-      setIsAuthenticated(true);
-
-      return true;
+      return false;
     } catch (error) {
       console.error("Registration failed:", error);
       return false;

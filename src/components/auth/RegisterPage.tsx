@@ -143,6 +143,7 @@ const RegisterPage = () => {
       console.error("Registration failed:", error);
       setApiError(
         error.response?.data?.message ||
+          error.response?.data?.data?.message ||
           "Registration failed. Please try again.",
       );
     } finally {

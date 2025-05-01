@@ -37,12 +37,26 @@ api.interceptors.response.use(
   (error) => {
     // Handle authentication errors
     if (error.response && error.response.status === 401) {
-      // Clear token
-      localStorage.removeItem("token");
+      // Don't clear token during login/register operations
+      const isAuthOperation =
+        error.config.url.includes("/login") ||
+        error.config.url.includes("/register");
 
-      // Redirect to login if not already there
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      if (!isAuthOperation) {
+        // Clear token
+        localStorage.removeItem("token");
+        delete axios.defaults.headers.common["Authorization"];
+
+        // Redirect to login if not already there and not in auth pages
+        const isAuthPage =
+          window.location.pathname === "/login" ||
+          window.location.pathname === "/register" ||
+          window.location.pathname === "/forgot-password" ||
+          window.location.pathname === "/reset-password";
+
+        if (!isAuthPage) {
+          window.location.href = "/login";
+        }
       }
     }
 
