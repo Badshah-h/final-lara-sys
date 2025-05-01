@@ -5,7 +5,10 @@ import { useState, useEffect, useCallback } from "react";
 import { activityLogService } from "@/services/user-management/activityLogService";
 import { useApi } from "@/hooks/useApi";
 import { ActivityLogEntry } from "@/types";
-import { ActivityLogQueryParams, PaginatedResponse } from "@/services/api/types";
+import {
+  ActivityLogQueryParams,
+  PaginatedResponse,
+} from "@/services/api/types";
 
 export function useActivityLogs() {
   const [activityLogs, setActivityLogs] = useState<ActivityLogEntry[]>([]);
@@ -22,22 +25,27 @@ export function useActivityLogs() {
     error: logsError,
     execute: fetchLogs,
   } = useApi<PaginatedResponse<ActivityLogEntry>, [ActivityLogQueryParams?]>(
-    activityLogService.getActivityLogs.bind(activityLogService)
+    activityLogService.getActivityLogs.bind(activityLogService),
   );
 
-  const { isLoading: isExporting, execute: exportLogs } = useApi<Blob, ["csv" | "json", ActivityLogQueryParams?]>(
-    activityLogService.exportActivityLogs.bind(activityLogService)
-  );
+  const { isLoading: isExporting, execute: exportLogs } = useApi<
+    Blob,
+    ["csv" | "json", ActivityLogQueryParams?]
+  >(activityLogService.exportActivityLogs.bind(activityLogService));
 
   // Fetch activity logs with current query parameters
   const fetchActivityData = useCallback(async () => {
     try {
+      console.log("Fetching activity logs with params:", queryParams);
       const response = await fetchLogs(queryParams);
+      console.log("Activity logs response:", response);
       setActivityLogs(response.data);
-      setTotalLogs(response.meta.total);
-      setCurrentPage(response.meta.current_page);
+      setTotalLogs(response.meta?.total || 0);
+      setCurrentPage(response.meta?.current_page || 1);
     } catch (error) {
       console.error("Error fetching activity logs:", error);
+      // Set empty array to prevent UI issues
+      setActivityLogs([]);
     }
   }, [fetchLogs, queryParams]);
 
