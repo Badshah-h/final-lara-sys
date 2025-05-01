@@ -223,4 +223,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+// Define the hook as a separate function declaration first
+function useAuth() {
+  const context = useContext(AuthContext);
+  return context;
+}
+
+// Export the hook separately
+export { useAuth };
