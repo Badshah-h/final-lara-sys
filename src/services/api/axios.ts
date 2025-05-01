@@ -20,9 +20,6 @@ api.interceptors.request.use(
     // If token exists, add it to the headers
     if (token) {
       config.headers["Authorization"] = `Bearer ${token}`;
-      console.log("Adding token to request:", config.url);
-    } else {
-      console.warn("No token found for request:", config.url);
     }
 
     return config;

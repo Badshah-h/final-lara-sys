@@ -101,6 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await axios.get(`${baseUrl}/sanctum/csrf-cookie`, {
         withCredentials: true,
       });
+      console.log("CSRF cookie fetched successfully");
       return true;
     } catch (error) {
       console.error("Failed to get CSRF cookie:", error);
