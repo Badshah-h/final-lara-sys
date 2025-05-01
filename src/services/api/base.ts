@@ -65,6 +65,13 @@ export class BaseApiService {
       ...this.headers,
       Authorization: `Bearer ${token}`,
     };
+    // Also set it in axios defaults for consistency
+    if (typeof window !== "undefined") {
+      const axios = window.axios || require("axios").default;
+      if (axios && axios.defaults) {
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+      }
+    }
   }
 
   /**
@@ -99,6 +106,11 @@ export class BaseApiService {
     params?: Record<string, any>,
     useCache: boolean = true,
   ): Promise<T> {
+    // Ensure token is set in headers for each request
+    const token = localStorage.getItem("token");
+    if (token) {
+      this.setAuthToken(token);
+    }
     const url = this.buildUrl(endpoint, params);
     const cacheKey = apiCache.generateKey(url, {});
 

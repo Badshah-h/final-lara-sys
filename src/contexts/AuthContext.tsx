@@ -75,6 +75,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const response = await axios.get(`${API_BASE_URL}/user`);
         setUser(response.data);
         setIsAuthenticated(true);
+
+        // Clear any previous refresh attempts
+        localStorage.removeItem("auth_refresh_attempted");
       } catch (error) {
         console.error("Failed to load user:", error);
         localStorage.removeItem("token");

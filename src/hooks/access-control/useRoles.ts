@@ -29,6 +29,19 @@ export function useRoles() {
     execute: fetchRoles,
   } = useApi<PaginatedResponse<Role>, [RoleQueryParams?]>(
     roleService.getRoles.bind(roleService),
+    {
+      onError: (error) => {
+        // If we get an authentication error, try to refresh the page once
+        if (
+          error.status === 401 &&
+          !localStorage.getItem("auth_refresh_attempted")
+        ) {
+          localStorage.setItem("auth_refresh_attempted", "true");
+          console.log("Authentication error, refreshing page...");
+          window.location.reload();
+        }
+      },
+    },
   );
 
   const { isLoading: isCreatingRole, execute: createRole } = useApi<
