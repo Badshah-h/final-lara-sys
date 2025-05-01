@@ -83,6 +83,7 @@ const UsersList = () => {
   const {
     users,
     totalUsers,
+    currentPage,
     isLoading,
     error,
     updateQueryParams,
