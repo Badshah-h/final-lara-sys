@@ -1,11 +1,9 @@
-/**
- * Custom hook for API calls with loading and error states
- */
 import { useState, useCallback, useEffect, useRef } from "react";
 import { ApiError, apiService } from "@/services/api/base";
 
-interface UseApiOptions {
-  onSuccess?: (data: any) => void;
+// Define the hook's options interface
+interface UseApiOptions<T> {
+  onSuccess?: (data: T) => void;
   onError?: (error: Error | ApiError) => void;
   autoExecute?: boolean;
   dependencies?: any[];
@@ -13,24 +11,39 @@ interface UseApiOptions {
 }
 
 /**
- * Hook for making API calls with loading and error states
- * @param apiFunction The API function to call
- * @param options Options for the hook
- * @returns Object with data, loading state, error, and execute function
+ * Generic hook to make API calls with loading, error, and data state.
+ * @param apiFunction - The API function that returns a Promise.
+ * @param options - Optional hook behavior and callbacks.
  */
-export function useApi<T, P extends any[]>(
+export function useApi<T = any, P extends any[] = []>(
   apiFunction: (...args: P) => Promise<T>,
-  options: UseApiOptions = {},
-) {
+  options: UseApiOptions<T> = {}
+): {
+  data: T | null;
+  isLoading: boolean;
+  error: Error | ApiError | null;
+  execute: (...args: P) => Promise<T>;
+  callApi: <R>(
+    category: string,
+    endpoint: string,
+    pathParams?: Record<string, string | number>,
+    payload?: any,
+    queryParams?: Record<string, any>
+  ) => Promise<R>;
+  reset: () => void;
+  hasExecuted: boolean; // Added state to track if the API has been executed
+} {
+  // State initialization
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | ApiError | null>(null);
+  const [hasExecuted, setHasExecuted] = useState(false); // New state for tracking API execution
+
   const requestIdRef = useRef<string>(
-    Math.random().toString(36).substring(2, 9),
+    Math.random().toString(36).substring(2, 9)
   );
   const isMountedRef = useRef<boolean>(true);
 
-  // Default options
   const {
     onSuccess,
     onError,
@@ -39,12 +52,16 @@ export function useApi<T, P extends any[]>(
     skipCache = false,
   } = options;
 
+  /**
+   * Executes the provided API function.
+   */
   const execute = useCallback(
-    async (...args: P) => {
-      if (!isMountedRef.current) return null;
+    async (...args: P): Promise<T> => {
+      if (!isMountedRef.current) return null as unknown as T;
 
       setIsLoading(true);
       setError(null);
+      setHasExecuted(true); // Mark as executed when function starts
 
       try {
         const result = await apiFunction(...args);
@@ -54,53 +71,32 @@ export function useApi<T, P extends any[]>(
         }
         return result;
       } catch (err) {
-        const error =
+        const errorObj =
           err instanceof Error ? err : new Error("An unknown error occurred");
         if (isMountedRef.current) {
-          setError(error);
-          onError?.(error);
+          setError(errorObj);
+          onError?.(errorObj);
         }
-        throw error;
+        throw errorObj;
       } finally {
         if (isMountedRef.current) {
           setIsLoading(false);
         }
       }
     },
-    [apiFunction, onSuccess, onError],
+    [apiFunction, onSuccess, onError]
   );
 
-  // Auto-execute the API call when dependencies change
-  useEffect(() => {
-    if (autoExecute) {
-      execute();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoExecute, ...dependencies]);
-
-  // Cancel any pending requests when the component unmounts
-  useEffect(() => {
-    return () => {
-      isMountedRef.current = false;
-      apiService.cancelRequest(requestIdRef.current);
-    };
-  }, []);
-
   /**
-   * Execute the API call with the registry
-   * @param category The API category (e.g., 'auth', 'users')
-   * @param endpoint The endpoint name within the category
-   * @param pathParams Optional path parameters (e.g., { id: 123 })
-   * @param data Optional request body data
-   * @param queryParams Optional query parameters
+   * Executes a generic API call via category/endpoint, bypassing the primary apiFunction.
    */
   const callApi = useCallback(
     async <R>(
       category: string,
       endpoint: string,
       pathParams?: Record<string, string | number>,
-      data?: any,
-      queryParams?: Record<string, any>,
+      payload?: any,
+      queryParams?: Record<string, any>
     ): Promise<R> => {
       if (!isMountedRef.current) return null as unknown as R;
 
@@ -112,32 +108,50 @@ export function useApi<T, P extends any[]>(
           category,
           endpoint,
           pathParams,
-          data,
-          queryParams,
+          payload,
+          queryParams
         );
 
         if (isMountedRef.current) {
-          setData(result as unknown as T);
-          onSuccess?.(result);
+          setData(result as unknown as T); // Cast required for type safety
+          onSuccess?.(result as unknown as T);
         }
+
         return result;
       } catch (err) {
-        const error =
+        const errorObj =
           err instanceof Error ? err : new Error("An unknown error occurred");
         if (isMountedRef.current) {
-          setError(error);
-          onError?.(error);
+          setError(errorObj);
+          onError?.(errorObj);
         }
-        throw error;
+        throw errorObj;
       } finally {
         if (isMountedRef.current) {
           setIsLoading(false);
         }
       }
     },
-    [onSuccess, onError],
+    [onSuccess, onError]
   );
 
+  // Auto-execute API call based on dependencies
+  useEffect(() => {
+    if (autoExecute) {
+      void execute(...([] as unknown as P));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoExecute, ...dependencies]);
+
+  // Clean up effect and cancel request on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      apiService.cancelRequest(requestIdRef.current);
+    };
+  }, []);
+
+  // Return the API response and state
   return {
     data,
     isLoading,
@@ -147,6 +161,8 @@ export function useApi<T, P extends any[]>(
     reset: () => {
       setData(null);
       setError(null);
+      setHasExecuted(false); // Reset the executed state
     },
+    hasExecuted, // Track if the hook was executed
   };
 }

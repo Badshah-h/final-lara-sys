@@ -19,7 +19,7 @@ return new class extends Migration
             $table->text('details')->nullable();
             $table->string('ip_address')->nullable();
             $table->text('user_agent')->nullable();
-            $table->boolean('status')->default(true);
+            $table->boolean('is_active')->default(true);
             $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();

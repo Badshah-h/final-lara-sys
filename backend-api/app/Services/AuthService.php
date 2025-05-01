@@ -33,9 +33,9 @@ class AuthService
         }
 
         $user = Auth::user();
-        
+
         // Check if user is active
-        if ($user->status !== 'active') {
+        if ($user->is_active !== true) {
             Auth::logout();
             return [
                 'success' => false,
@@ -45,8 +45,8 @@ class AuthService
         }
 
         // Update last active timestamp
-        $user->last_active_at = now();
-        $user->save();
+       // $user->last_active_at = now();
+       // $user->save();
 
         // Create token
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -84,15 +84,13 @@ class AuthService
             'name' => $data['name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'status' => 'active', // Default status
-            'last_active_at' => now()
+            'is_active' => true, // Default status
         ]);
 
         // Assign default role if specified
         if (isset($data['role']) && !empty($data['role'])) {
             $user->assignRole($data['role']);
         } else {
-            // Assign default user role
             $user->assignRole('user');
         }
 
@@ -127,7 +125,7 @@ class AuthService
 
         $user = Auth::user();
         $user->load('roles.permissions');
-        
+
         // Get all permissions from user's roles
         $permissions = $user->getAllPermissions()->pluck('name');
 

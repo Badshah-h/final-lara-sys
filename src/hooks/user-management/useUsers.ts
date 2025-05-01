@@ -1,15 +1,19 @@
 /**
  * Custom hook for user management operations
  */
-import { useState, useEffect, useCallback } from "react";
-import { userService } from "../../components/admin/user-management/services";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { UserService } from "@/services/user-management";
 import { useApi } from "@/hooks/useApi";
-import { User } from "../../types";
+import { User } from "@/types";
 import {
-  CreateUserRequest,
-  UpdateUserRequest,
+  UserCreateRequest as CreateUserRequest,
+  UserUpdateRequest,
   UserQueryParams,
-} from "../../components/admin/user-management/services/index";
+  PaginatedResponse,
+} from "@/services/api/types";
+
+// Create one instance and reuse
+const userService = new UserService();
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -20,89 +24,87 @@ export function useUsers() {
     per_page: 10,
   });
 
-  // API hooks
+  const fetchUsersRef = useRef<(params?: UserQueryParams) => Promise<any>>();
+
+  // Fetch users API
   const {
     isLoading: isLoadingUsers,
     error: usersError,
-    execute: fetchUsers,
-  } = useApi(userService.getUsers.bind(userService));
+    execute: fetchUsersApi,
+  } = useApi<PaginatedResponse<User>, [UserQueryParams?]>(
+    userService.getUsers.bind(userService)
+  );
 
+  // Data fetch logic (uses latest queryParams)
+  const fetchUserData = useCallback(async () => {
+    const response = await fetchUsersApi(queryParams);
+    if (response?.data) {
+      setUsers(response.data);
+      setTotalUsers(response.meta?.total || 0);
+      setCurrentPage(response.meta?.current_page || 1);
+    }
+  }, [fetchUsersApi, queryParams]);
+
+  // Save ref to avoid circular call
+  fetchUsersRef.current = fetchUserData;
+
+  // Create user
   const { isLoading: isCreatingUser, execute: createUser } = useApi(
     userService.createUser.bind(userService),
     {
       onSuccess: () => {
-        // Refresh the user list after creating a user
-        fetchUserData();
+        fetchUsersRef.current?.();
       },
-    },
+    }
   );
 
+  // Update user
   const { isLoading: isUpdatingUser, execute: updateUser } = useApi(
-    async (id: string, data: UpdateUserRequest) => {
-      return userService.updateUser(id, data);
-    },
+    async (id: string, data: UserUpdateRequest) =>
+      await userService.updateUser(id, data),
     {
       onSuccess: () => {
-        // Refresh the user list after updating a user
-        fetchUserData();
+        fetchUsersRef.current?.();
       },
-    },
+    }
   );
 
+  // Delete user
   const { isLoading: isDeletingUser, execute: deleteUser } = useApi(
     userService.deleteUser.bind(userService),
     {
       onSuccess: () => {
-        // Refresh the user list after deleting a user
-        fetchUserData();
+        fetchUsersRef.current?.();
       },
-    },
+    }
   );
 
-  // Fetch users with current query parameters
-  const fetchUserData = useCallback(async () => {
-    try {
-      const response = await fetchUsers(queryParams);
-      if (response && response.data) {
-        setUsers(response.data);
-        setTotalUsers(response.meta?.total || 0);
-        setCurrentPage(response.meta?.current_page || 1);
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    }
-  }, [fetchUsers, queryParams]);
-
-  // Initial data fetch
+  // Initial fetch
   useEffect(() => {
     fetchUserData();
   }, [fetchUserData]);
 
-  // Update query parameters
+  // Update filters & page
   const updateQueryParams = useCallback(
     (newParams: Partial<UserQueryParams>) => {
-      setQueryParams((prev) => ({
-        ...prev,
-        ...newParams,
-        // Reset to page 1 when filters change
-        page:
-          newParams.page ||
-          (newParams.search !== undefined ||
-          newParams.role !== undefined ||
-          newParams.status !== undefined
-            ? 1
-            : prev.page),
-      }));
+      setQueryParams((prev) => {
+        const shouldResetPage =
+          "search" in newParams || "role" in newParams || "status" in newParams;
+
+        return {
+          ...prev,
+          ...newParams,
+          page: shouldResetPage ? 1 : newParams.page ?? prev.page,
+        };
+      });
     },
-    [],
+    []
   );
 
-  // Handle pagination
+  // Pagination
   const goToPage = useCallback(
-    (page: number) => {
-      updateQueryParams({ page });
-    },
-    [updateQueryParams],
+    (page: number) => updateQueryParams({ page }),
+    [updateQueryParams]
   );
 
   return {

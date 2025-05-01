@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import UsersList from "./tabs/UsersList";
 
 // This is a placeholder for the actual tab components that will be implemented later
 const TabPlaceholder = ({ title }: { title: string }) => (
@@ -154,7 +155,7 @@ const UserManagement = () => {
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
-          <TabPlaceholder title="Users" />
+          <UsersList />
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4">

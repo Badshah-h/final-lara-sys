@@ -36,10 +36,10 @@ class AuthController extends BaseApiController
         $result = $this->authService->login($request->validated());
 
         if (!$result['success']) {
-            return $this->sendError($result['message'], $result['errors'] ?? [], $result['code'] ?? 401);
+            return $this->errorResponse($result['message'], $result['code'] ?? 401, $result['errors'] ?? []);
         }
 
-        return $this->sendResponse($result['data'], $result['message']);
+        return $this->successResponse($result['data'], $result['message']);
     }
 
     /**
@@ -53,10 +53,10 @@ class AuthController extends BaseApiController
         $result = $this->authService->register($request->validated());
 
         if (!$result['success']) {
-            return $this->sendError($result['message'], $result['errors'] ?? [], $result['code'] ?? 400);
+            return $this->errorResponse($result['message'], $result['code'] ?? 400, $result['errors'] ?? []);
         }
 
-        return $this->sendResponse($result['data'], $result['message'], 201);
+        return $this->successResponse($result['data'], $result['message'], 201);
     }
 
     /**
@@ -70,10 +70,10 @@ class AuthController extends BaseApiController
         $result = $this->authService->getAuthenticatedUser();
 
         if (!$result['success']) {
-            return $this->sendError($result['message'], $result['errors'] ?? [], $result['code'] ?? 401);
+            return $this->errorResponse($result['message'], $result['code'] ?? 401, $result['errors'] ?? []);
         }
 
-        return $this->sendResponse($result['data'], $result['message']);
+        return $this->successResponse($result['data'], $result['message']);
     }
 
     /**
@@ -87,10 +87,10 @@ class AuthController extends BaseApiController
         $result = $this->authService->logout();
 
         if (!$result['success']) {
-            return $this->sendError($result['message'], $result['errors'] ?? [], $result['code'] ?? 400);
+            return $this->errorResponse($result['message'], $result['code'] ?? 400, $result['errors'] ?? []);
         }
 
-        return $this->sendResponse(null, $result['message']);
+        return $this->successResponse(null, $result['message']);
     }
 
     /**
@@ -104,10 +104,10 @@ class AuthController extends BaseApiController
         $result = $this->authService->sendPasswordResetLink($request->validated());
 
         if (!$result['success']) {
-            return $this->sendError($result['message'], $result['errors'] ?? [], $result['code'] ?? 400);
+            return $this->errorResponse($result['message'], $result['code'] ?? 400, $result['errors'] ?? []);
         }
 
-        return $this->sendResponse(null, $result['message']);
+        return $this->successResponse(null, $result['message']);
     }
 
     /**
@@ -121,9 +121,9 @@ class AuthController extends BaseApiController
         $result = $this->authService->resetPassword($request->validated());
 
         if (!$result['success']) {
-            return $this->sendError($result['message'], $result['errors'] ?? [], $result['code'] ?? 400);
+            return $this->errorResponse($result['message'], $result['code'] ?? 400, $result['errors'] ?? []);
         }
 
-        return $this->sendResponse(null, $result['message']);
+        return $this->successResponse(null, $result['message']);
     }
 }

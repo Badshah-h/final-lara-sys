@@ -11,6 +11,8 @@ import {
   RETRY_DELAY,
   CSRF_ENABLED,
   CSRF_HEADER_NAME,
+  TOKEN_AUTO_REFRESH,
+  TOKEN_REFRESH_THRESHOLD,
 } from "./config";
 import { apiCache } from "./cache";
 import { getApiUrl, getEndpointDefinition } from "./registry";
@@ -25,7 +27,7 @@ export class ApiError extends Error {
     message: string,
     status: number,
     data?: any,
-    retryable: boolean = true,
+    retryable: boolean = true
   ) {
     super(message);
     this.name = "ApiError";
@@ -49,7 +51,7 @@ export class BaseApiService {
 
   constructor(
     baseUrl: string = API_BASE_URL,
-    headers: HeadersInit = DEFAULT_HEADERS,
+    headers: HeadersInit = DEFAULT_HEADERS
   ) {
     this.baseUrl = baseUrl;
     this.headers = headers;
@@ -95,7 +97,7 @@ export class BaseApiService {
   async get<T>(
     endpoint: string,
     params?: Record<string, any>,
-    useCache: boolean = true,
+    useCache: boolean = true
   ): Promise<T> {
     const url = this.buildUrl(endpoint, params);
     const cacheKey = apiCache.generateKey(url, {});
@@ -114,7 +116,7 @@ export class BaseApiService {
         method: "GET",
         headers: this.headers,
       },
-      cacheKey,
+      cacheKey
     );
 
     // Cache the response if caching is enabled
@@ -136,7 +138,7 @@ export class BaseApiService {
       } catch (error) {
         console.warn(
           "Failed to initialize CSRF token before POST request:",
-          error,
+          error
         );
       }
     }
@@ -160,7 +162,7 @@ export class BaseApiService {
       } catch (error) {
         console.warn(
           "Failed to initialize CSRF token before PUT request:",
-          error,
+          error
         );
       }
     }
@@ -184,7 +186,7 @@ export class BaseApiService {
       } catch (error) {
         console.warn(
           "Failed to initialize CSRF token before PATCH request:",
-          error,
+          error
         );
       }
     }
@@ -208,7 +210,7 @@ export class BaseApiService {
       } catch (error) {
         console.warn(
           "Failed to initialize CSRF token before DELETE request:",
-          error,
+          error
         );
       }
     }
@@ -233,7 +235,7 @@ export class BaseApiService {
     endpoint: string,
     pathParams?: Record<string, string | number>,
     data?: any,
-    queryParams?: Record<string, any>,
+    queryParams?: Record<string, any>
   ): Promise<T> {
     const endpointDef = getEndpointDefinition(category, endpoint);
     const url = getApiUrl(category, endpoint, pathParams);
@@ -272,7 +274,7 @@ export class BaseApiService {
       apiCache.set(
         cacheKey,
         response,
-        endpointDef.cacheTime || DEFAULT_CACHE_TIME,
+        endpointDef.cacheTime || DEFAULT_CACHE_TIME
       );
     }
 
@@ -341,8 +343,74 @@ export class BaseApiService {
     url: string,
     options: RequestInit,
     requestId: string = Math.random().toString(36).substring(2, 9),
-    retryCount: number = 0,
+    retryCount: number = 0
   ): Promise<T> {
+    // Check if the request requires authentication by examining the URL
+    const isAuthEndpoint =
+      url.includes("/login") ||
+      url.includes("/register") ||
+      url.includes("/password/");
+    const requiresAuth = !isAuthEndpoint;
+
+    // Validate token for authenticated endpoints
+    if (requiresAuth) {
+      // Get the token
+      let token = tokenService.getToken();
+
+      // If no token exists for an authenticated endpoint, throw an error
+      if (!token) {
+        console.error(
+          `Authentication required for request to ${url} but no token found`
+        );
+        throw new ApiError("Authentication required", 401, null, false);
+      }
+
+      // Check if token is about to expire
+      if (
+        TOKEN_AUTO_REFRESH &&
+        tokenService.isTokenExpired(TOKEN_REFRESH_THRESHOLD)
+      ) {
+        try {
+          console.log(
+            `Token is about to expire for request to ${url}, attempting refresh`
+          );
+
+          // Import authService dynamically to avoid circular dependency
+          const { authService } = await import("../auth/authService");
+
+          // Try to refresh the token
+          const refreshed = await authService.checkAndRefreshToken();
+          if (!refreshed) {
+            console.warn("Token refresh failed, proceeding with current token");
+          } else {
+            console.log("Using refreshed token for request");
+            // Get the new token after refresh
+            token = tokenService.getToken() || token;
+          }
+        } catch (refreshError) {
+          console.error("Error during token refresh:", refreshError);
+        }
+      }
+
+      // Check if token is expired (after refresh attempt)
+      if (tokenService.isTokenExpired()) {
+        console.warn(`Token expired or will expire soon for request to ${url}`);
+        // Clear the invalid token
+        tokenService.clearToken();
+
+        // Redirect to login page if not already there
+        if (window.location.pathname !== "/login") {
+          console.log("Token expired, redirecting to login page");
+          window.location.href = "/login";
+        }
+
+        throw new ApiError("Authentication token expired", 401, null, false);
+      }
+
+      // Set the auth token in headers
+      this.setAuthToken(token);
+    }
+
     // Add CSRF token to headers for non-GET requests if enabled
     if (CSRF_ENABLED && options.method !== "GET") {
       const csrfToken = tokenService.getCsrfToken();
@@ -353,7 +421,7 @@ export class BaseApiService {
         };
       } else {
         console.warn(
-          `No CSRF token available for ${options.method} request to ${url}`,
+          `No CSRF token available for ${options.method} request to ${url}`
         );
       }
     }
@@ -396,19 +464,23 @@ export class BaseApiService {
           const rawText = await modifiedResponse.clone().text();
           console.error(
             "JSON parsing failed. Raw response:",
-            rawText.substring(0, 500) + (rawText.length > 500 ? "..." : ""),
+            rawText.substring(0, 500) + (rawText.length > 500 ? "..." : "")
           );
 
           // Throw a more descriptive error
           throw new ApiError(
-            `Failed to parse JSON response: ${jsonError instanceof Error ? jsonError.message : "Unknown parsing error"}`,
+            `Failed to parse JSON response: ${
+              jsonError instanceof Error
+                ? jsonError.message
+                : "Unknown parsing error"
+            }`,
             modifiedResponse.status,
             {
               rawResponse:
                 rawText.substring(0, 1000) +
                 (rawText.length > 1000 ? "..." : ""),
             },
-            false,
+            false
           );
         }
       } else {
@@ -420,7 +492,7 @@ export class BaseApiService {
         // Check for CSRF token mismatch (419 in Laravel)
         if (modifiedResponse.status === 419) {
           console.warn(
-            "CSRF token mismatch detected, attempting to refresh token",
+            "CSRF token mismatch detected, attempting to refresh token"
           );
           // Try to refresh the CSRF token
           await tokenService.initCsrfToken();
@@ -436,7 +508,7 @@ export class BaseApiService {
           data.message || `API error: ${modifiedResponse.status}`,
           modifiedResponse.status,
           data,
-          modifiedResponse.status >= 500 || modifiedResponse.status === 429, // Server errors and rate limiting are retryable
+          modifiedResponse.status >= 500 || modifiedResponse.status === 429 // Server errors and rate limiting are retryable
         );
 
         // Try to handle the error with interceptors
@@ -486,7 +558,7 @@ export class BaseApiService {
         error instanceof Error ? error.message : "Unknown error",
         500,
         null,
-        true,
+        true
       );
     }
   }
@@ -494,3 +566,37 @@ export class BaseApiService {
 
 // Create and export a singleton instance of the BaseApiService
 export const apiService = new BaseApiService();
+
+// Add a global error interceptor to handle authentication errors
+// This ensures all services using BaseApiService will handle auth errors consistently
+apiService.addErrorInterceptor(async (error) => {
+  // Handle 401 Unauthorized errors
+  if (error.status === 401) {
+    console.warn(
+      "Authentication error detected in global handler:",
+      error.message
+    );
+
+    // Clear the token
+    tokenService.clearToken();
+
+    // Redirect to login page if not already there
+    if (window.location.pathname !== "/login") {
+      console.log("Redirecting to login page due to authentication error");
+
+      // Store the current path to redirect back after login
+      const currentPath = window.location.pathname;
+      if (currentPath !== "/" && currentPath !== "/login") {
+        sessionStorage.setItem("auth_redirect", currentPath);
+      }
+
+      // Use a small delay to allow console logs to be seen
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 100);
+    }
+  }
+
+  // Always rethrow the error to let the calling code handle it
+  throw error;
+});

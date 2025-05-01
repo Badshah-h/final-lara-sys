@@ -1,6 +1,10 @@
 import { BaseApiService } from "../api/base";
 import { ApiResponse } from "../api/types";
+import { TOKEN_REFRESH_THRESHOLD } from "../api/config";
 import { tokenService } from "./tokenService";
+
+// Token storage key - must match the one in tokenService
+const TOKEN_KEY = "auth_token";
 
 export interface LoginCredentials {
   email: string;
@@ -57,6 +61,25 @@ class AuthService extends BaseApiService {
       }
       return config;
     });
+
+    // Add an error interceptor to handle authentication errors
+    this.addErrorInterceptor(async (error) => {
+      // Handle 401 Unauthorized errors
+      if (error.status === 401) {
+        console.warn(
+          "Authentication error detected, clearing token and redirecting to login"
+        );
+        // Clear the token
+        tokenService.clearToken();
+
+        // Redirect to login page
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      }
+      // Always rethrow the error to let the calling code handle it
+      throw error;
+    });
   }
 
   /**
@@ -76,7 +99,7 @@ class AuthService extends BaseApiService {
     } catch (error) {
       console.warn(
         "CSRF initialization failed, continuing without CSRF protection:",
-        error,
+        error
       );
       // Continue without CSRF protection
 
@@ -91,9 +114,12 @@ class AuthService extends BaseApiService {
 
   /**
    * Login with email and password
+   *
+   * @param credentials Login credentials including email, password and remember option
+   * @returns API response with token and user data
    */
   async login(
-    credentials: LoginCredentials,
+    credentials: LoginCredentials
   ): Promise<ApiResponse<{ token: string; user: User }>> {
     // Ensure CSRF token is initialized before login
     await this.init();
@@ -102,10 +128,19 @@ class AuthService extends BaseApiService {
       ApiResponse<{ token: string; user: User }>
     >("/login", credentials);
 
-    // Store the token
+    // Store the token with remember me option
     if (response.data?.token) {
-      tokenService.setToken(response.data.token);
+      tokenService.setToken(response.data.token, credentials.remember || false);
       this.setAuthToken(response.data.token);
+
+      // Log token information in development mode
+      if (import.meta.env.DEV) {
+        const decoded = tokenService.decodeToken(response.data.token);
+        if (decoded && decoded.exp) {
+          const expiryDate = new Date(decoded.exp * 1000);
+          console.log(`Token will expire at: ${expiryDate.toLocaleString()}`);
+        }
+      }
     }
 
     return response;
@@ -113,9 +148,12 @@ class AuthService extends BaseApiService {
 
   /**
    * Register a new user
+   *
+   * @param data Registration data
+   * @returns API response with token and user data
    */
   async register(
-    data: RegisterData,
+    data: RegisterData
   ): Promise<ApiResponse<{ token: string; user: User }>> {
     // Ensure CSRF token is initialized before registration
     await this.init();
@@ -126,8 +164,19 @@ class AuthService extends BaseApiService {
 
     // Store the token
     if (response.data?.token) {
-      tokenService.setToken(response.data.token);
+      tokenService.setToken(response.data.token, false); // Default to not remember for new registrations
       this.setAuthToken(response.data.token);
+
+      // Log token information in development mode
+      if (import.meta.env.DEV) {
+        const decoded = tokenService.decodeToken(response.data.token);
+        if (decoded && decoded.exp) {
+          const expiryDate = new Date(decoded.exp * 1000);
+          console.log(
+            `Registration token will expire at: ${expiryDate.toLocaleString()}`
+          );
+        }
+      }
     }
 
     return response;
@@ -178,10 +227,107 @@ class AuthService extends BaseApiService {
   }
 
   /**
-   * Check if user is authenticated
+   * Check if user is authenticated with valid token
+   *
+   * This method checks if a token exists in localStorage and validates it.
+   * It performs client-side validation of the token's expiration.
+   *
+   * @returns true if a valid token exists, false otherwise
    */
   isAuthenticated(): boolean {
-    return !!tokenService.getToken();
+    // First check if token exists
+    const token = tokenService.getToken();
+    if (!token) {
+      return false;
+    }
+
+    // Then validate the token (check expiration)
+    return tokenService.validateToken();
+  }
+
+  /**
+   * Get user information from token without making API call
+   * Useful for quick access to user ID or other basic info
+   *
+   * @returns Basic user info from token or null if invalid
+   */
+  getUserFromToken(): { id: string; email?: string } | null {
+    const token = tokenService.getToken();
+    if (!token) return null;
+
+    const decoded = tokenService.decodeToken(token);
+    if (!decoded || !decoded.sub) return null;
+
+    return {
+      id: decoded.sub,
+      email: decoded.email,
+    };
+  }
+
+  /**
+   * Refresh the authentication token
+   * This should be called when the token is about to expire
+   *
+   * @returns A promise that resolves to the new token or null if refresh failed
+   */
+  async refreshToken(): Promise<string | null> {
+    try {
+      // Get the current token
+      const currentToken = tokenService.getToken();
+      if (!currentToken) {
+        console.warn("No token to refresh");
+        return null;
+      }
+
+      // Set the current token in the headers
+      this.setAuthToken(currentToken);
+
+      // Make a request to the refresh endpoint
+      const response = await this.post<ApiResponse<{ token: string }>>(
+        "/auth/refresh"
+      );
+
+      // If successful, update the token
+      if (response.data?.token) {
+        // Get the remember me state from the current token (if available)
+        const rememberMe =
+          localStorage.getItem(`${TOKEN_KEY}_remember`) === "true";
+
+        // Store the new token
+        tokenService.setToken(response.data.token, rememberMe);
+        this.setAuthToken(response.data.token);
+
+        console.log("Token refreshed successfully");
+        return response.data.token;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Failed to refresh token:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if token needs refresh and refresh it if necessary
+   *
+   * @returns true if token was refreshed or doesn't need refresh, false if refresh failed
+   */
+  async checkAndRefreshToken(): Promise<boolean> {
+    // If no token exists, nothing to refresh
+    if (!tokenService.getToken()) {
+      return false;
+    }
+
+    // Check if token is about to expire (using the threshold from config)
+    if (tokenService.isTokenExpired(TOKEN_REFRESH_THRESHOLD)) {
+      console.log("Token is about to expire, attempting to refresh");
+      const newToken = await this.refreshToken();
+      return !!newToken;
+    }
+
+    // Token is still valid and not close to expiration
+    return true;
   }
 }
 

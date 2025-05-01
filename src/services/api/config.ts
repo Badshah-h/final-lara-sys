@@ -9,7 +9,7 @@ const getApiBaseUrl = (): string => {
 
   // Log the environment and API URL for debugging
   console.log(
-    `API Config - Environment: ${env}, API URL from env: ${apiUrl || "not set"}`,
+    `API Config - Environment: ${env}, API URL from env: ${apiUrl || "not set"}`
   );
 
   // If API URL is explicitly set, use it
@@ -71,3 +71,8 @@ export const RETRY_DELAY = 1000;
 export const CSRF_ENABLED = true; // Always enable CSRF for Laravel
 export const CSRF_COOKIE_NAME = "XSRF-TOKEN";
 export const CSRF_HEADER_NAME = "X-XSRF-TOKEN";
+
+// Token settings
+export const TOKEN_REFRESH_ENDPOINT = "/auth/refresh"; // Endpoint to refresh tokens
+export const TOKEN_REFRESH_THRESHOLD = 5 * 60; // Refresh token if less than 5 minutes left (in seconds)
+export const TOKEN_AUTO_REFRESH = true; // Enable automatic token refresh

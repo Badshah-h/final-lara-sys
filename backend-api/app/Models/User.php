@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Role;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -113,6 +114,30 @@ class User extends Authenticatable
         }
         
         return in_array($permissions, $userPermissions);
+    }
+
+    /**
+     * Assign a role to the user.
+     *
+     * @param string|int $role Role name or ID
+     * @return void
+     */
+    public function assignRole($role): void
+    {
+        $roleId = is_numeric($role) ? $role : Role::where('name', $role)->value('id');
+        
+        if (!$roleId) {
+            return;
+        }
+        
+        // Check if the role is already assigned
+        if (!$this->roles()->where('roles.id', $roleId)->exists()) {
+            $this->roles()->attach($roleId, [
+                'is_active' => true,
+                'created_by' => auth()->id() ?? 1,
+                'updated_by' => auth()->id() ?? 1,
+            ]);
+        }
     }
 
     /**

@@ -12,13 +12,13 @@ interface AuthContextType {
   isLoading: boolean;
   error: Error | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string, remember?: boolean) => Promise<void>;
+  login: (email: string, password: string, remember?: boolean) => Promise<any>;
   register: (
     name: string,
     email: string,
     password: string,
     passwordConfirmation: string,
-  ) => Promise<void>;
+  ) => Promise<any>;
   logout: () => Promise<void>;
   hasRole: (role: string) => boolean;
   hasPermission: (permission: string) => boolean;
@@ -31,34 +31,65 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  // Check if user is authenticated on mount
+  // Check if user is authenticated on mount and periodically validate session
   useEffect(() => {
     const checkAuth = async () => {
       try {
         if (authService.isAuthenticated()) {
-          const response = await authService.getCurrentUser();
-          setUser(response.data);
+          try {
+            const response = await authService.getCurrentUser();
+            setUser(response.data);
+          } catch (apiError: any) {
+            if (apiError.status === 401) {
+              console.warn("Token validation failed - clearing invalid token");
+              authService.logout().catch((e) => console.error("Error during logout:", e));
+              setUser(null); // Ensure user state is cleared
+            } else {
+              console.error("Error fetching user data:", apiError);
+              setError(apiError instanceof Error ? apiError : new Error("Failed to fetch user"));
+            }
+          }
         }
       } catch (err) {
-        console.error("Failed to fetch user:", err);
-        setError(
-          err instanceof Error ? err : new Error("Failed to fetch user"),
-        );
+        console.error("Authentication check failed:", err);
+        setError(err instanceof Error ? err : new Error("Authentication check failed"));
       } finally {
         setIsLoading(false);
       }
     };
 
+    // Initial session check
     checkAuth();
-  }, []);
+
+    // Set an interval to check the session every 5 minutes
+    const intervalId = setInterval(checkAuth, 5 * 60 * 1000); // Every 5 minutes
+
+    // Clean up the interval on component unmount
+    return () => clearInterval(intervalId);
+
+  }, []); // This will run once when the component mounts
 
   const login = async (email: string, password: string, remember = false) => {
     setIsLoading(true);
     setError(null);
     try {
+      console.log(`Attempting login for ${email} with remember: ${remember}`);
       const response = await authService.login({ email, password, remember });
+
+      // Set the user in state
       setUser(response.data.user);
+      console.log("Login successful, user data received:", response.data.user);
+
+      // Check if there's a stored redirect path
+      const redirectPath = sessionStorage.getItem("auth_redirect");
+      if (redirectPath) {
+        console.log(`Found stored redirect path: ${redirectPath}`);
+        sessionStorage.removeItem("auth_redirect");
+      }
+
+      return response;
     } catch (err) {
+      console.error("Login error:", err);
       setError(err instanceof Error ? err : new Error("Login failed"));
       throw err;
     } finally {
@@ -75,14 +106,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setIsLoading(true);
     setError(null);
     try {
+      console.log(`Attempting registration for ${email}`);
       const response = await authService.register({
         name,
         email,
         password,
         password_confirmation,
       });
+
+      // Set the user in state
       setUser(response.data.user);
+      console.log("Registration successful, user data received:", response.data.user);
+
+      return response;
     } catch (err) {
+      console.error("Registration error:", err);
       setError(err instanceof Error ? err : new Error("Registration failed"));
       throw err;
     } finally {
@@ -96,6 +134,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await authService.logout();
       setUser(null);
+      // Optionally, redirect user to login page
+      window.location.href = "/login"; // Or use a routing library if applicable
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Logout failed"));
       throw err;
@@ -114,13 +154,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return user.permissions.includes(permission);
   };
 
+  // Compute isAuthenticated based on both user existence and token validity
+  const isAuthenticated = !!user && authService.isAuthenticated();
+
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
         error,
-        isAuthenticated: !!user,
+        isAuthenticated,
         login,
         register,
         logout,

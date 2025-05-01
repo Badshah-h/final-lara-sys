@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +13,7 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { authService } from "@/services/auth/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,9 +29,16 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 const LoginPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+
+  // Get the redirect path from location state or default to dashboard
+  const from = (location.state as any)?.from?.pathname || "/dashboard";
 
   // Initialize react-hook-form with zod resolver
   const {
@@ -53,15 +60,16 @@ const LoginPage = () => {
     setFormSuccess(null);
 
     try {
-      await authService.login({
-        email: data.email,
-        password: data.password,
-        remember: data.remember,
-      });
+      // Use the login function from AuthContext
+      await login(data.email, data.password, data.remember);
+
+      // Show success message
       setFormSuccess("Login successful! Redirecting...");
+
+      // Use React Router for navigation after a short delay
       setTimeout(() => {
-        window.location.href = "/dashboard";
-      }, 1500);
+        navigate(from, { replace: true });
+      }, 1000);
     } catch (error) {
       console.error("Login failed:", error);
       setFormError("Invalid email or password. Please try again.");

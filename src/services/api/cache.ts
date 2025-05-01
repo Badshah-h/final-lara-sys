@@ -98,7 +98,7 @@ class ApiCache {
    * @param params Optional parameters
    * @returns A cache key
    */
-  static generateKey(url: string, params?: Record<string, any>): string {
+  generateKey(url: string, params?: Record<string, any>): string {
     if (!params) return url;
     return `${url}?${Object.entries(params)
       .map(([key, value]) => `${key}=${JSON.stringify(value)}`)
