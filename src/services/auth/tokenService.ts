@@ -138,13 +138,22 @@ class TokenService {
     try {
       const decoded = this.decodeToken(token);
       if (!decoded) {
-        console.warn("Could not decode token when checking expiration");
+        // Don't log warning repeatedly to avoid console spam
+        // Only log once per session
+        if (!sessionStorage.getItem("token_decode_warning")) {
+          console.warn("Could not decode token when checking expiration");
+          sessionStorage.setItem("token_decode_warning", "true");
+        }
         return true;
       }
 
       // If token doesn't have an expiration claim
       if (!decoded.exp) {
-        console.warn("Token has no expiration (exp) claim");
+        // Don't log warning repeatedly
+        if (!sessionStorage.getItem("token_no_exp_warning")) {
+          console.warn("Token has no expiration (exp) claim");
+          sessionStorage.setItem("token_no_exp_warning", "true");
+        }
 
         // Check if token was created more than 24 hours ago as a fallback
         const createdTime =
@@ -156,16 +165,24 @@ class TokenService {
           const maxAge = 24 * 60 * 60; // 24 hours in seconds
 
           if (tokenAge > maxAge) {
-            console.warn(
-              `Token is older than 24 hours (${Math.round(
-                tokenAge / 3600,
-              )} hours)`,
-            );
+            // Don't log warning repeatedly
+            if (!sessionStorage.getItem("token_age_warning")) {
+              console.warn(
+                `Token is older than 24 hours (${Math.round(
+                  tokenAge / 3600,
+                )} hours)`,
+              );
+              sessionStorage.setItem("token_age_warning", "true");
+            }
             return true;
           }
         } else {
           // If we can't determine when the token was created, consider it expired
-          console.warn("Token has no expiration and no creation time");
+          // Don't log warning repeatedly
+          if (!sessionStorage.getItem("token_no_creation_warning")) {
+            console.warn("Token has no expiration and no creation time");
+            sessionStorage.setItem("token_no_creation_warning", "true");
+          }
           return true;
         }
 
@@ -179,7 +196,14 @@ class TokenService {
       // Check if token is expired or will expire soon (within buffer)
       const isExpiring = timeUntilExpiry <= bufferSeconds;
 
-      if (isExpiring) {
+      // Only log warnings once per minute to avoid console spam
+      const lastWarningTime = parseInt(
+        sessionStorage.getItem("last_token_warning_time") || "0",
+      );
+      const currentTimeMs = Date.now();
+      const shouldLog = currentTimeMs - lastWarningTime > 60000; // 1 minute
+
+      if (isExpiring && shouldLog) {
         if (timeUntilExpiry <= 0) {
           console.warn(`Token is expired (${-timeUntilExpiry} seconds ago)`);
         } else {
@@ -187,11 +211,19 @@ class TokenService {
             `Token will expire soon (in ${timeUntilExpiry} seconds)`,
           );
         }
+        sessionStorage.setItem(
+          "last_token_warning_time",
+          currentTimeMs.toString(),
+        );
       }
 
       return isExpiring;
     } catch (error) {
-      console.error("Error checking token expiration:", error);
+      // Don't log error repeatedly
+      if (!sessionStorage.getItem("token_expiry_error")) {
+        console.error("Error checking token expiration:", error);
+        sessionStorage.setItem("token_expiry_error", "true");
+      }
       return true;
     }
   }

@@ -23,27 +23,50 @@ export function useUsers() {
     page: 1,
     per_page: 10,
   });
+  const [isInitialFetch, setIsInitialFetch] = useState(true);
+  const [isManualFetch, setIsManualFetch] = useState(false);
 
   const fetchUsersRef = useRef<(params?: UserQueryParams) => Promise<any>>();
+  const isMountedRef = useRef<boolean>(true);
 
   // Fetch users API
   const {
     isLoading: isLoadingUsers,
     error: usersError,
     execute: fetchUsersApi,
+    reset: resetUsersApi,
   } = useApi<PaginatedResponse<User>, [UserQueryParams?]>(
-    userService.getUsers.bind(userService)
+    userService.getUsers.bind(userService),
   );
 
   // Data fetch logic (uses latest queryParams)
   const fetchUserData = useCallback(async () => {
-    const response = await fetchUsersApi(queryParams);
-    if (response?.data) {
-      setUsers(response.data);
-      setTotalUsers(response.meta?.total || 0);
-      setCurrentPage(response.meta?.current_page || 1);
+    // Prevent fetching if component is unmounted
+    if (!isMountedRef.current) return;
+
+    // Prevent duplicate API calls when filters change rapidly
+    if (isLoadingUsers && !isManualFetch) return;
+
+    try {
+      const response = await fetchUsersApi(queryParams);
+      if (response?.data && isMountedRef.current) {
+        setUsers(response.data);
+        setTotalUsers(response.meta?.total || 0);
+        setCurrentPage(response.meta?.current_page || 1);
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      // Set empty users array to prevent UI issues
+      if (isMountedRef.current) {
+        setUsers([]);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsInitialFetch(false);
+        setIsManualFetch(false);
+      }
     }
-  }, [fetchUsersApi, queryParams]);
+  }, [fetchUsersApi, queryParams, isLoadingUsers, isManualFetch]);
 
   // Save ref to avoid circular call
   fetchUsersRef.current = fetchUserData;
@@ -53,9 +76,12 @@ export function useUsers() {
     userService.createUser.bind(userService),
     {
       onSuccess: () => {
-        fetchUsersRef.current?.();
+        if (isMountedRef.current) {
+          setIsManualFetch(true);
+          fetchUsersRef.current?.();
+        }
       },
-    }
+    },
   );
 
   // Update user
@@ -64,9 +90,12 @@ export function useUsers() {
       await userService.updateUser(id, data),
     {
       onSuccess: () => {
-        fetchUsersRef.current?.();
+        if (isMountedRef.current) {
+          setIsManualFetch(true);
+          fetchUsersRef.current?.();
+        }
       },
-    }
+    },
   );
 
   // Delete user
@@ -74,19 +103,31 @@ export function useUsers() {
     userService.deleteUser.bind(userService),
     {
       onSuccess: () => {
-        fetchUsersRef.current?.();
+        if (isMountedRef.current) {
+          setIsManualFetch(true);
+          fetchUsersRef.current?.();
+        }
       },
-    }
+    },
   );
 
   // Initial fetch
   useEffect(() => {
-    fetchUserData();
-  }, [fetchUserData]);
+    if (isInitialFetch) {
+      fetchUserData();
+    }
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, [fetchUserData, isInitialFetch]);
 
   // Update filters & page
   const updateQueryParams = useCallback(
     (newParams: Partial<UserQueryParams>) => {
+      // Skip update if component is unmounted
+      if (!isMountedRef.current) return;
+
       setQueryParams((prev) => {
         const shouldResetPage =
           "search" in newParams || "role" in newParams || "status" in newParams;
@@ -94,18 +135,27 @@ export function useUsers() {
         return {
           ...prev,
           ...newParams,
-          page: shouldResetPage ? 1 : newParams.page ?? prev.page,
+          page: shouldResetPage ? 1 : (newParams.page ?? prev.page),
         };
       });
     },
-    []
+    [],
   );
 
   // Pagination
   const goToPage = useCallback(
     (page: number) => updateQueryParams({ page }),
-    [updateQueryParams]
+    [updateQueryParams],
   );
+
+  // Manual refresh function
+  const refreshUsers = useCallback(() => {
+    if (isMountedRef.current) {
+      setIsManualFetch(true);
+      resetUsersApi();
+      fetchUserData();
+    }
+  }, [fetchUserData, resetUsersApi]);
 
   return {
     users,
@@ -116,7 +166,7 @@ export function useUsers() {
     isUpdatingUser,
     isDeletingUser,
     error: usersError,
-    fetchUsers: fetchUserData,
+    fetchUsers: refreshUsers,
     createUser,
     updateUser,
     deleteUser,

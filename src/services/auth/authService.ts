@@ -335,11 +335,53 @@ class AuthService extends BaseApiService {
       return false;
     }
 
+    // Track refresh attempts to prevent infinite loops
+    const refreshAttempts = parseInt(
+      sessionStorage.getItem("token_refresh_attempts") || "0",
+    );
+    if (refreshAttempts > 2) {
+      // If we've tried to refresh more than twice in this session, clear the token
+      // This prevents infinite refresh loops
+      console.warn("Too many token refresh attempts, clearing token");
+      tokenService.clearToken();
+      sessionStorage.removeItem("token_refresh_attempts");
+      return false;
+    }
+
     // Check if token is about to expire (using the threshold from config)
     if (tokenService.isTokenExpired(TOKEN_REFRESH_THRESHOLD)) {
-      console.log("Token is about to expire, attempting to refresh");
-      const newToken = await this.refreshToken();
-      return !!newToken;
+      // Only log once per minute
+      const lastLogTime = parseInt(
+        sessionStorage.getItem("last_token_refresh_log") || "0",
+      );
+      const currentTime = Date.now();
+      if (currentTime - lastLogTime > 60000) {
+        // 1 minute
+        console.log("Token is about to expire, attempting to refresh");
+        sessionStorage.setItem(
+          "last_token_refresh_log",
+          currentTime.toString(),
+        );
+      }
+
+      // Increment refresh attempts
+      sessionStorage.setItem(
+        "token_refresh_attempts",
+        (refreshAttempts + 1).toString(),
+      );
+
+      try {
+        const newToken = await this.refreshToken();
+        if (newToken) {
+          // Reset refresh attempts on success
+          sessionStorage.removeItem("token_refresh_attempts");
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Token refresh failed:", error);
+        return false;
+      }
     }
 
     // Token is still valid and not close to expiration

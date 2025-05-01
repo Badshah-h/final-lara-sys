@@ -28,20 +28,23 @@ export function useRoles() {
     error: rolesError,
     execute: fetchRoles,
   } = useApi<PaginatedResponse<Role>, [RoleQueryParams?]>(
-    roleService.getRoles.bind(roleService)
+    roleService.getRoles.bind(roleService),
   );
 
-  const { isLoading: isCreatingRole, execute: createRole } = useApi<ApiResponse<Role>, [RoleCreateRequest]>(
-    roleService.createRole.bind(roleService),
-    {
-      onSuccess: () => {
-        // Refresh the role list after creating a role
-        fetchRoleData();
-      },
+  const { isLoading: isCreatingRole, execute: createRole } = useApi<
+    ApiResponse<Role>,
+    [RoleCreateRequest]
+  >(roleService.createRole.bind(roleService), {
+    onSuccess: () => {
+      // Refresh the role list after creating a role
+      fetchRoleData();
     },
-  );
+  });
 
-  const { isLoading: isUpdatingRole, execute: updateRole } = useApi<ApiResponse<Role>, [string, RoleUpdateRequest]>(
+  const { isLoading: isUpdatingRole, execute: updateRole } = useApi<
+    ApiResponse<Role>,
+    [string, RoleUpdateRequest]
+  >(
     async (id: string, data: RoleUpdateRequest) => {
       return roleService.updateRole(id, data);
     },
@@ -53,15 +56,15 @@ export function useRoles() {
     },
   );
 
-  const { isLoading: isDeletingRole, execute: deleteRole } = useApi<ApiResponse<null>, [string]>(
-    roleService.deleteRole.bind(roleService),
-    {
-      onSuccess: () => {
-        // Refresh the role list after deleting a role
-        fetchRoleData();
-      },
+  const { isLoading: isDeletingRole, execute: deleteRole } = useApi<
+    ApiResponse<null>,
+    [string]
+  >(roleService.deleteRole.bind(roleService), {
+    onSuccess: () => {
+      // Refresh the role list after deleting a role
+      fetchRoleData();
     },
-  );
+  });
 
   // Fetch roles with current query parameters
   const fetchRoleData = useCallback(async () => {
@@ -89,7 +92,8 @@ export function useRoles() {
         ...prev,
         ...newParams,
         // Reset to page 1 when filters change
-        page: newParams.page || (newParams.search !== undefined ? 1 : prev.page),
+        page:
+          newParams.page || (newParams.search !== undefined ? 1 : prev.page),
       }));
     },
     [],
