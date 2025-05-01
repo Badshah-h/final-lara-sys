@@ -6,6 +6,7 @@ import {
   ReactNode,
 } from "react";
 import { authService, User } from "../services/auth/authService";
+import { tokenService } from "../services/auth/tokenService";
 
 interface AuthContextType {
   user: User | null;
@@ -25,6 +26,15 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Define the hook before the provider component for better Fast Refresh compatibility
+function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -206,11 +216,5 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Export the hook as a const arrow function for Fast Refresh compatibility
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+// Export the hook separately after defining it earlier
+export { useAuth };
