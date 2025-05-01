@@ -79,7 +79,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Clear any previous refresh attempts
         localStorage.removeItem("auth_refresh_attempted");
       } catch (error) {
-        console.error("Failed to load user:", error);
+        // Failed to load user
         localStorage.removeItem("token");
         delete axios.defaults.headers.common["Authorization"];
       } finally {
@@ -101,10 +101,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       await axios.get(`${baseUrl}/sanctum/csrf-cookie`, {
         withCredentials: true,
       });
-      console.log("CSRF cookie fetched successfully");
+      // CSRF cookie fetched successfully
       return true;
     } catch (error) {
-      console.error("Failed to get CSRF cookie:", error);
+      // Failed to get CSRF cookie
       return false;
     }
   };
@@ -150,13 +150,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(userResponse.data);
         setIsAuthenticated(true);
       } catch (userError) {
-        console.error("Failed to fetch user data:", userError);
+        // Failed to fetch user data
         // Still return true since login was successful
       }
 
       return response.data;
     } catch (error) {
-      console.error("Login failed:", error);
+      // Login failed
       return false;
     }
   };
@@ -204,10 +204,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           setIsAuthenticated(true);
           return true;
         } catch (userError) {
-          console.error(
-            "Failed to fetch user data after registration:",
-            userError,
-          );
+          // Failed to fetch user data after registration
           // Still return true since registration was successful
           return true;
         }
@@ -215,7 +212,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       return false;
     } catch (error) {
-      console.error("Registration failed:", error);
+      // Registration failed
       return false;
     }
   };
@@ -224,7 +221,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       await axios.post(`${API_BASE_URL}/logout`);
     } catch (error) {
-      console.error("Logout API call failed:", error);
+      // Logout API call failed
     } finally {
       // Always clear local state even if API call fails
       localStorage.removeItem("token");

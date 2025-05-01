@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { ApiError, apiService } from "@/services/api/base";
+import axios from "axios";
+import { API_BASE_URL } from "@/services/api/config";
 
 // Define the hook's options interface
 interface UseApiOptions<T> {
   onSuccess?: (data: T) => void;
-  onError?: (error: Error | ApiError) => void;
+  onError?: (error: Error) => void;
   autoExecute?: boolean;
   dependencies?: any[];
   skipCache?: boolean;
@@ -17,18 +18,18 @@ interface UseApiOptions<T> {
  */
 export function useApi<T = any, P extends any[] = []>(
   apiFunction: (...args: P) => Promise<T>,
-  options: UseApiOptions<T> = {}
+  options: UseApiOptions<T> = {},
 ): {
   data: T | null;
   isLoading: boolean;
-  error: Error | ApiError | null;
+  error: Error | null;
   execute: (...args: P) => Promise<T>;
   callApi: <R>(
-    category: string,
     endpoint: string,
+    method: string,
     pathParams?: Record<string, string | number>,
     payload?: any,
-    queryParams?: Record<string, any>
+    queryParams?: Record<string, any>,
   ) => Promise<R>;
   reset: () => void;
   hasExecuted: boolean; // Added state to track if the API has been executed
@@ -36,12 +37,9 @@ export function useApi<T = any, P extends any[] = []>(
   // State initialization
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | ApiError | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [hasExecuted, setHasExecuted] = useState(false); // New state for tracking API execution
 
-  const requestIdRef = useRef<string>(
-    Math.random().toString(36).substring(2, 9)
-  );
   const isMountedRef = useRef<boolean>(true);
 
   const {
@@ -64,6 +62,13 @@ export function useApi<T = any, P extends any[] = []>(
       setHasExecuted(true); // Mark as executed when function starts
 
       try {
+        // Ensure token is set for each request
+        const token = localStorage.getItem("token");
+        if (token) {
+          // Set token in axios defaults
+          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        }
+
         const result = await apiFunction(...args);
         if (isMountedRef.current) {
           setData(result);
@@ -84,19 +89,19 @@ export function useApi<T = any, P extends any[] = []>(
         }
       }
     },
-    [apiFunction, onSuccess, onError]
+    [apiFunction, onSuccess, onError],
   );
 
   /**
-   * Executes a generic API call via category/endpoint, bypassing the primary apiFunction.
+   * Executes a generic API call via endpoint and method
    */
   const callApi = useCallback(
     async <R>(
-      category: string,
       endpoint: string,
+      method: string,
       pathParams?: Record<string, string | number>,
       payload?: any,
-      queryParams?: Record<string, any>
+      queryParams?: Record<string, any>,
     ): Promise<R> => {
       if (!isMountedRef.current) return null as unknown as R;
 
@@ -104,16 +109,54 @@ export function useApi<T = any, P extends any[] = []>(
       setError(null);
 
       try {
-        const result = await apiService.callApi<R>(
-          category,
-          endpoint,
-          pathParams,
-          payload,
-          queryParams
-        );
+        // Build the URL with path parameters
+        let url = endpoint;
+        if (pathParams) {
+          Object.entries(pathParams).forEach(([key, value]) => {
+            url = url.replace(`:${key}`, String(value));
+          });
+        }
+
+        // Ensure token is set for each request
+        const token = localStorage.getItem("token");
+        if (token) {
+          axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+        }
+
+        // Make the API call
+        let response;
+        const fullUrl = `${API_BASE_URL}${url}`;
+
+        switch (method.toUpperCase()) {
+          case "GET":
+            response = await axios.get(fullUrl, { params: queryParams });
+            break;
+          case "POST":
+            response = await axios.post(fullUrl, payload, {
+              params: queryParams,
+            });
+            break;
+          case "PUT":
+            response = await axios.put(fullUrl, payload, {
+              params: queryParams,
+            });
+            break;
+          case "PATCH":
+            response = await axios.patch(fullUrl, payload, {
+              params: queryParams,
+            });
+            break;
+          case "DELETE":
+            response = await axios.delete(fullUrl, { params: queryParams });
+            break;
+          default:
+            throw new Error(`Unsupported HTTP method: ${method}`);
+        }
+
+        const result = response.data;
 
         if (isMountedRef.current) {
-          setData(result as unknown as T); // Cast required for type safety
+          setData(result as unknown as T);
           onSuccess?.(result as unknown as T);
         }
 
@@ -132,7 +175,7 @@ export function useApi<T = any, P extends any[] = []>(
         }
       }
     },
-    [onSuccess, onError]
+    [onSuccess, onError],
   );
 
   // Auto-execute API call based on dependencies
@@ -143,11 +186,10 @@ export function useApi<T = any, P extends any[] = []>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoExecute, ...dependencies]);
 
-  // Clean up effect and cancel request on unmount
+  // Clean up effect on unmount
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
-      apiService.cancelRequest(requestIdRef.current);
     };
   }, []);
 

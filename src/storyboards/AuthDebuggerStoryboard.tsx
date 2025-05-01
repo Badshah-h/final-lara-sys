@@ -36,7 +36,7 @@ const AuthDebuggerStoryboard = () => {
         const response = await authService.getCurrentUser();
         currentUser = response.data;
       } catch (error) {
-        console.error("Error fetching current user:", error);
+        // Error fetching current user
       }
     }
 
@@ -59,7 +59,7 @@ const AuthDebuggerStoryboard = () => {
       await tokenService.initCsrfToken();
       refreshState();
     } catch (error) {
-      console.error("Error initializing CSRF token:", error);
+      // Error initializing CSRF token
     }
   };
 

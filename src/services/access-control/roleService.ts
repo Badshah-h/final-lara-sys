@@ -1,37 +1,41 @@
 /**
  * Role API service
  */
-import { BaseApiService } from "@/services/api/base";
+import api from "../api/axios";
+import { API_BASE_URL } from "../api/config";
 import {
   ApiResponse,
   PaginatedResponse,
   RoleQueryParams,
   RoleCreateRequest,
   RoleUpdateRequest,
-} from "@/services/api/types";
+} from "../api/types";
 import { Role } from "@/types";
 import { User } from "@/types";
 
-export class RoleService extends BaseApiService {
+export class RoleService {
   /**
    * Get all roles with optional filtering and pagination
    */
   async getRoles(params?: RoleQueryParams): Promise<PaginatedResponse<Role>> {
-    return this.get<PaginatedResponse<Role>>("/roles", params);
+    const response = await api.get(`${API_BASE_URL}/roles`, { params });
+    return response.data;
   }
 
   /**
    * Get a single role by ID
    */
   async getRole(id: string): Promise<ApiResponse<Role>> {
-    return this.get<ApiResponse<Role>>(`/roles/${id}`);
+    const response = await api.get(`${API_BASE_URL}/roles/${id}`);
+    return response.data;
   }
 
   /**
    * Create a new role
    */
   async createRole(roleData: RoleCreateRequest): Promise<ApiResponse<Role>> {
-    return this.post<ApiResponse<Role>>("/roles", roleData);
+    const response = await api.post(`${API_BASE_URL}/roles`, roleData);
+    return response.data;
   }
 
   /**
@@ -41,21 +45,24 @@ export class RoleService extends BaseApiService {
     id: string,
     roleData: RoleUpdateRequest,
   ): Promise<ApiResponse<Role>> {
-    return this.patch<ApiResponse<Role>>(`/roles/${id}`, roleData);
+    const response = await api.patch(`${API_BASE_URL}/roles/${id}`, roleData);
+    return response.data;
   }
 
   /**
    * Delete a role
    */
   async deleteRole(id: string): Promise<ApiResponse<null>> {
-    return this.delete<ApiResponse<null>>(`/roles/${id}`);
+    const response = await api.delete(`${API_BASE_URL}/roles/${id}`);
+    return response.data;
   }
 
   /**
    * Get users assigned to a role
    */
   async getRoleUsers(id: string): Promise<ApiResponse<User[]>> {
-    return this.get<ApiResponse<User[]>>(`/roles/${id}/users`);
+    const response = await api.get(`${API_BASE_URL}/roles/${id}/users`);
+    return response.data;
   }
 }
 

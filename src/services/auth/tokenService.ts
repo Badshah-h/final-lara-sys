@@ -33,9 +33,7 @@ class TokenService {
       sessionStorage.removeItem(`${TOKEN_KEY}_created`);
       sessionStorage.removeItem(`${TOKEN_KEY}_remember`);
 
-      console.log(
-        "Token stored in localStorage with remember me (persists after browser close)",
-      );
+      // Token stored in localStorage with remember me
     } else {
       // Store in sessionStorage for session-only persistence
       sessionStorage.setItem(TOKEN_KEY, token);
@@ -47,16 +45,14 @@ class TokenService {
       localStorage.removeItem(`${TOKEN_KEY}_created`);
       localStorage.removeItem(`${TOKEN_KEY}_remember`);
 
-      console.log(
-        "Token stored in sessionStorage (cleared when browser is closed)",
-      );
+      // Token stored in sessionStorage
     }
 
     // Log token expiration if available
     const decoded = this.decodeToken(token);
     if (decoded && decoded.exp) {
       const expiryDate = new Date(decoded.exp * 1000);
-      console.log(`Token will expire at: ${expiryDate.toLocaleString()}`);
+      // Token expiry date set
     }
   }
 
@@ -99,7 +95,7 @@ class TokenService {
     sessionStorage.removeItem(`${TOKEN_KEY}_created`);
     sessionStorage.removeItem(`${TOKEN_KEY}_remember`);
 
-    console.log("Token cleared from both localStorage and sessionStorage");
+    // Token cleared from storage
   }
 
   /**
@@ -131,7 +127,7 @@ class TokenService {
   isTokenExpired(bufferSeconds: number = TOKEN_EXPIRY_BUFFER): boolean {
     const token = this.getToken();
     if (!token) {
-      console.log("No token found when checking expiration");
+      // No token found when checking expiration
       return true;
     }
 
@@ -141,7 +137,7 @@ class TokenService {
         // Don't log warning repeatedly to avoid console spam
         // Only log once per session
         if (!sessionStorage.getItem("token_decode_warning")) {
-          console.warn("Could not decode token when checking expiration");
+          // Could not decode token when checking expiration
           sessionStorage.setItem("token_decode_warning", "true");
         }
         return true;
@@ -151,7 +147,7 @@ class TokenService {
       if (!decoded.exp) {
         // Don't log warning repeatedly
         if (!sessionStorage.getItem("token_no_exp_warning")) {
-          console.warn("Token has no expiration (exp) claim");
+          // Token has no expiration claim
           sessionStorage.setItem("token_no_exp_warning", "true");
         }
 
@@ -167,11 +163,7 @@ class TokenService {
           if (tokenAge > maxAge) {
             // Don't log warning repeatedly
             if (!sessionStorage.getItem("token_age_warning")) {
-              console.warn(
-                `Token is older than 24 hours (${Math.round(
-                  tokenAge / 3600,
-                )} hours)`,
-              );
+              // Token is older than 24 hours
               sessionStorage.setItem("token_age_warning", "true");
             }
             return true;
@@ -180,7 +172,7 @@ class TokenService {
           // If we can't determine when the token was created, consider it expired
           // Don't log warning repeatedly
           if (!sessionStorage.getItem("token_no_creation_warning")) {
-            console.warn("Token has no expiration and no creation time");
+            // Token has no expiration and no creation time
             sessionStorage.setItem("token_no_creation_warning", "true");
           }
           return true;
@@ -205,11 +197,9 @@ class TokenService {
 
       if (isExpiring && shouldLog) {
         if (timeUntilExpiry <= 0) {
-          console.warn(`Token is expired (${-timeUntilExpiry} seconds ago)`);
+          // Token is expired
         } else {
-          console.warn(
-            `Token will expire soon (in ${timeUntilExpiry} seconds)`,
-          );
+          // Token will expire soon
         }
         sessionStorage.setItem(
           "last_token_warning_time",
@@ -221,7 +211,7 @@ class TokenService {
     } catch (error) {
       // Don't log error repeatedly
       if (!sessionStorage.getItem("token_expiry_error")) {
-        console.error("Error checking token expiration:", error);
+        // Error checking token expiration
         sessionStorage.setItem("token_expiry_error", "true");
       }
       return true;
@@ -238,7 +228,7 @@ class TokenService {
 
     // Check if token is expired
     if (this.isTokenExpired()) {
-      console.warn("Token validation failed: token is expired");
+      // Token validation failed: token is expired
       return false;
     }
 
@@ -246,7 +236,7 @@ class TokenService {
     try {
       const decoded = this.decodeToken(token);
       if (!decoded) {
-        console.warn("Token validation failed: could not decode token");
+        // Token validation failed: could not decode token
         return false;
       }
 
@@ -254,7 +244,7 @@ class TokenService {
 
       return true;
     } catch (error) {
-      console.error("Token validation error:", error);
+      // Token validation error
       return false;
     }
   }
@@ -281,16 +271,16 @@ class TokenService {
     try {
       // Check if we already have a CSRF token
       if (this.csrfToken) {
-        console.log("Using existing CSRF token");
+        // Using existing CSRF token
         return this.csrfToken;
       }
 
-      console.log("Initializing CSRF token...");
+      // Initializing CSRF token
 
       // Check if there's already an XSRF-TOKEN cookie
       const existingCookie = this.getXsrfCookieFromDocument();
       if (existingCookie) {
-        console.log("Found existing XSRF-TOKEN cookie, using it");
+        // Found existing XSRF-TOKEN cookie
         const token = decodeURIComponent(existingCookie.split("=")[1]);
         this.setCsrfToken(token);
         return token;
@@ -299,7 +289,7 @@ class TokenService {
       // Get the API URL from config
       const apiBaseUrl =
         import.meta.env.VITE_API_URL || "http://localhost:8000";
-      console.log("Using API base URL:", apiBaseUrl);
+      // Using API base URL
 
       // For development environment, we might need to handle CSRF differently
       // If we're in a development environment and the API is on a different domain,
@@ -308,9 +298,7 @@ class TokenService {
         import.meta.env.DEV &&
         !apiBaseUrl.includes(window.location.hostname)
       ) {
-        console.log(
-          "Development environment detected with cross-domain API. Using simulated CSRF token.",
-        );
+        // Development environment detected with cross-domain API
         const simulatedToken = "dev-csrf-token-" + Date.now();
         this.setCsrfToken(simulatedToken);
         return simulatedToken;
@@ -326,7 +314,7 @@ class TokenService {
           ? `${apiBaseUrl.substring(0, apiBaseUrl.length - 4)}/sanctum/csrf-cookie`
           : `${apiBaseUrl}/sanctum/csrf-cookie`;
 
-        console.log("Fetching CSRF token from:", csrfUrl);
+        // Fetching CSRF token
 
         const response = await fetch(csrfUrl, {
           method: "GET",
@@ -342,22 +330,20 @@ class TokenService {
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          console.error(
-            `CSRF token fetch failed with status: ${response.status} ${response.statusText}`,
-          );
+          // CSRF token fetch failed
           // Try to get response body for more details
           try {
             const errorBody = await response.text();
             console.error("Error response body:", errorBody);
           } catch (e) {
-            console.error("Could not read error response body");
+            // Could not read error response body
           }
           throw new Error(
             `Failed to fetch CSRF token: ${response.status} ${response.statusText}`,
           );
         }
 
-        console.log("CSRF cookie response received, status:", response.status);
+        // CSRF cookie response received
 
         // Extract the CSRF token from cookies
         const xsrfCookie = this.getXsrfCookieFromDocument();
@@ -365,26 +351,21 @@ class TokenService {
           .split(";")
           .find((cookie) => cookie.trim().startsWith("laravel_session="));
 
-        console.log("XSRF cookie found after request:", !!xsrfCookie);
-        console.log("Laravel session cookie found:", !!laravelSessionCookie);
+        // XSRF cookie and Laravel session cookie check
 
         if (xsrfCookie) {
           // The cookie value is URL encoded, so we need to decode it
           const token = decodeURIComponent(xsrfCookie.split("=")[1]);
           this.setCsrfToken(token);
-          console.log("CSRF token set successfully");
+          // CSRF token set successfully
           return token;
         } else {
-          console.warn(
-            "No XSRF-TOKEN cookie found after sanctum/csrf-cookie request",
-          );
+          // No XSRF-TOKEN cookie found after request
 
           // If we're in development and no XSRF token was found, but the request was successful,
           // we'll create a simulated token to allow development to continue
           if (import.meta.env.DEV) {
-            console.log(
-              "Development environment: Creating simulated CSRF token",
-            );
+            // Development environment: Creating simulated CSRF token
             const simulatedToken = "dev-csrf-token-" + Date.now();
             this.setCsrfToken(simulatedToken);
             return simulatedToken;
@@ -393,7 +374,7 @@ class TokenService {
       } catch (fetchError) {
         clearTimeout(timeoutId);
         if (fetchError.name === "AbortError") {
-          console.error("CSRF token request timed out after 10 seconds");
+          // CSRF token request timed out
           throw new Error("CSRF token request timed out");
         }
         throw fetchError;
@@ -401,13 +382,11 @@ class TokenService {
 
       return null;
     } catch (error) {
-      console.error("Failed to initialize CSRF token:", error);
+      // Failed to initialize CSRF token
 
       // In development, provide a fallback token to allow work to continue
       if (import.meta.env.DEV) {
-        console.warn(
-          "Development environment: Using fallback CSRF token due to error",
-        );
+        // Development environment: Using fallback CSRF token
         const fallbackToken = "fallback-csrf-token-" + Date.now();
         this.setCsrfToken(fallbackToken);
         return fallbackToken;

@@ -1,36 +1,40 @@
 /**
  * User API service
  */
-import { BaseApiService } from "@/services/api/base";
+import api from "../api/axios";
+import { API_BASE_URL } from "../api/config";
 import {
   ApiResponse,
   UserCreateRequest,
   PaginatedResponse,
   UserUpdateRequest,
   UserQueryParams,
-} from "@/services/api/types";
+} from "../api/types";
 import { User } from "@/types";
 
-export class UserService extends BaseApiService {
+export class UserService {
   /**
    * Get all users with optional filtering and pagination
    */
   async getUsers(params?: UserQueryParams): Promise<PaginatedResponse<User>> {
-    return this.get<PaginatedResponse<User>>("/users", params);
+    const response = await api.get(`${API_BASE_URL}/users`, { params });
+    return response.data;
   }
 
   /**
    * Get a single user by ID
    */
   async getUser(id: string): Promise<ApiResponse<User>> {
-    return this.get<ApiResponse<User>>(`/users/${id}`);
+    const response = await api.get(`${API_BASE_URL}/users/${id}`);
+    return response.data;
   }
 
   /**
    * Create a new user
    */
   async createUser(userData: UserCreateRequest): Promise<ApiResponse<User>> {
-    return this.post<ApiResponse<User>>("/users", userData);
+    const response = await api.post(`${API_BASE_URL}/users`, userData);
+    return response.data;
   }
 
   /**
@@ -40,21 +44,26 @@ export class UserService extends BaseApiService {
     id: string,
     userData: UserUpdateRequest,
   ): Promise<ApiResponse<User>> {
-    return this.patch<ApiResponse<User>>(`/users/${id}`, userData);
+    const response = await api.patch(`${API_BASE_URL}/users/${id}`, userData);
+    return response.data;
   }
 
   /**
    * Delete a user
    */
   async deleteUser(id: string): Promise<ApiResponse<null>> {
-    return this.delete<ApiResponse<null>>(`/users/${id}`);
+    const response = await api.delete(`${API_BASE_URL}/users/${id}`);
+    return response.data;
   }
 
   /**
    * Send password reset email to user
    */
   async sendPasswordReset(email: string): Promise<ApiResponse<null>> {
-    return this.post<ApiResponse<null>>("/users/password-reset", { email });
+    const response = await api.post(`${API_BASE_URL}/users/password-reset`, {
+      email,
+    });
+    return response.data;
   }
 
   /**
@@ -64,6 +73,12 @@ export class UserService extends BaseApiService {
     id: string,
     status: string,
   ): Promise<ApiResponse<User>> {
-    return this.patch<ApiResponse<User>>(`/users/${id}/status`, { status });
+    const response = await api.patch(`${API_BASE_URL}/users/${id}/status`, {
+      status,
+    });
+    return response.data;
   }
 }
+
+// Export a singleton instance
+export const userService = new UserService();

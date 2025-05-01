@@ -1,32 +1,32 @@
 /**
  * Activity Log API service
  */
-import { BaseApiService } from "@/services/api/base";
+import api from "../api/axios";
+import { API_BASE_URL } from "../api/config";
 import {
   ActivityLogQueryParams,
   ApiResponse,
   PaginatedResponse,
-} from "@/services/api/types";
+} from "../api/types";
 import { ActivityLogEntry } from "@/types";
 
-export class ActivityLogService extends BaseApiService {
+export class ActivityLogService {
   /**
    * Get activity logs with optional filtering and pagination
    */
   async getActivityLogs(
     params?: ActivityLogQueryParams,
   ): Promise<PaginatedResponse<ActivityLogEntry>> {
-    return this.get<PaginatedResponse<ActivityLogEntry>>(
-      "/activity-logs",
-      params,
-    );
+    const response = await api.get(`${API_BASE_URL}/activity-logs`, { params });
+    return response.data;
   }
 
   /**
    * Get a single activity log entry by ID
    */
   async getActivityLog(id: string): Promise<ApiResponse<ActivityLogEntry>> {
-    return this.get<ApiResponse<ActivityLogEntry>>(`/activity-logs/${id}`);
+    const response = await api.get(`${API_BASE_URL}/activity-logs/${id}`);
+    return response.data;
   }
 
   /**
@@ -36,10 +36,11 @@ export class ActivityLogService extends BaseApiService {
     userId: string,
     params?: ActivityLogQueryParams,
   ): Promise<PaginatedResponse<ActivityLogEntry>> {
-    return this.get<PaginatedResponse<ActivityLogEntry>>(
-      `/users/${userId}/activity-logs`,
-      params,
+    const response = await api.get(
+      `${API_BASE_URL}/users/${userId}/activity-logs`,
+      { params },
     );
+    return response.data;
   }
 
   /**
@@ -49,10 +50,33 @@ export class ActivityLogService extends BaseApiService {
     format: "csv" | "json",
     params?: ActivityLogQueryParams,
   ): Promise<Blob> {
-    const url = this.buildUrl(`/activity-logs/export`, { ...params, format });
-    const response = await fetch(url, {
+    const url = new URL(`${API_BASE_URL}/activity-logs/export`);
+
+    // Add format and other params to URL
+    url.searchParams.append("format", format);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+
+    // Get token for authorization header
+    const token = localStorage.getItem("token");
+    const headers: HeadersInit = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url.toString(), {
       method: "GET",
-      headers: this.headers,
+      headers,
+      credentials: "include",
     });
 
     if (!response.ok) {
