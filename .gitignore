@@ -29,6 +29,7 @@ dist-ssr
 **/tempobook/storyboards/
 
 core
+.history
 
 .github/
 
