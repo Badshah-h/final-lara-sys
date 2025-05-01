@@ -29,6 +29,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { JsonViewer } from "@/components/ui/json-viewer";
 import { getAllEndpoints } from "@/services/api/registry";
 import { apiService } from "@/services/api/base";
 import { API_BASE_URL } from "@/services/api/config";
@@ -1078,38 +1079,23 @@ const ApiTester = () => {
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-lg">Response Body</CardTitle>
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleCopyResponse}
-                          >
-                            {copiedToClipboard ? (
-                              <Check className="mr-2 h-4 w-4" />
-                            ) : (
-                              <Copy className="mr-2 h-4 w-4" />
-                            )}
-                            {copiedToClipboard ? "Copied" : "Copy"}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleDownloadResponse}
-                          >
-                            <Download className="mr-2 h-4 w-4" />
-                            Download
-                          </Button>
-                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDownloadResponse}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <ScrollArea className="h-[400px]">
-                        <pre className="font-mono text-sm whitespace-pre-wrap bg-muted p-4 rounded-md">
-                          {typeof response.body === "string"
-                            ? response.body
-                            : JSON.stringify(response.body, null, 2)}
-                        </pre>
-                      </ScrollArea>
+                      <JsonViewer
+                        data={response.body}
+                        height="400px"
+                        showCopyButton={true}
+                        showRawToggle={true}
+                      />
                     </CardContent>
                   </Card>
                 </>

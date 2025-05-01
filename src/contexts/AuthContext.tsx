@@ -133,11 +133,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// Export the hook directly as a named function declaration for Fast Refresh compatibility
-export function useAuth() {
+// Export the hook as a const arrow function for Fast Refresh compatibility
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-}
+};

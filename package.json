@@ -12,6 +12,11 @@
     "types:supabase": "npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/supabase.ts"
   },
   "dependencies": {
+    "@codemirror/lang-json": "^6.0.1",
+    "@codemirror/language": "^6.11.0",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.2",
+    "@codemirror/view": "^6.36.6",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.1.2",
     "@radix-ui/react-alert-dialog": "^1.0.5",
@@ -41,6 +46,8 @@
     "@radix-ui/react-toggle": "^1.0.3",
     "@radix-ui/react-tooltip": "^1.0.7",
     "@supabase/supabase-js": "^2.45.6",
+    "@uiw/codemirror-theme-vscode": "^4.23.11",
+    "@uiw/react-codemirror": "^4.23.11",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",

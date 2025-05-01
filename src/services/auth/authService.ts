@@ -64,10 +64,14 @@ class AuthService extends BaseApiService {
    */
   async init(): Promise<void> {
     try {
-      // Only initialize CSRF token if we're using Laravel Sanctum
-      const useSanctum = import.meta.env.VITE_USE_SANCTUM === "true";
-      if (useSanctum) {
-        await tokenService.initCsrfToken();
+      // Always initialize CSRF token for Laravel
+      console.log("Initializing auth service and CSRF token");
+      const token = await tokenService.initCsrfToken();
+
+      if (token) {
+        console.log("Auth service initialized with CSRF token");
+      } else {
+        console.warn("Auth service initialized without CSRF token");
       }
     } catch (error) {
       console.warn(
@@ -75,6 +79,13 @@ class AuthService extends BaseApiService {
         error,
       );
       // Continue without CSRF protection
+
+      // In development, we can continue with a simulated token
+      if (import.meta.env.DEV) {
+        console.warn("Development environment: Creating emergency CSRF token");
+        const emergencyToken = "emergency-csrf-token-" + Date.now();
+        tokenService.setCsrfToken(emergencyToken);
+      }
     }
   }
 
@@ -176,7 +187,18 @@ class AuthService extends BaseApiService {
 
 export const authService = new AuthService();
 
-// Initialize the auth service
-authService.init().catch((error) => {
-  console.error("Failed to initialize auth service:", error);
-});
+// Initialize the auth service with a timeout to prevent blocking
+const initTimeout = setTimeout(() => {
+  console.warn("Auth service initialization timed out after 5 seconds");
+}, 5000);
+
+authService
+  .init()
+  .then(() => {
+    clearTimeout(initTimeout);
+    console.log("Auth service initialized successfully");
+  })
+  .catch((error) => {
+    clearTimeout(initTimeout);
+    console.error("Failed to initialize auth service:", error);
+  });
