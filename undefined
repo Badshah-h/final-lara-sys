@@ -1,0 +1,11 @@
+import AIConfiguration from "@/components/admin/AIConfiguration";
+
+export default function AIConfigurationDemo() {
+  return (
+    <div className="bg-background min-h-screen p-8">
+      <div className="max-w-7xl mx-auto">
+        <AIConfiguration />
+      </div>
+    </div>
+  );
+}
