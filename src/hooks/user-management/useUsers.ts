@@ -1,200 +1,100 @@
 /**
  * Custom hook for user management operations
  */
-import { useState, useEffect, useCallback, useRef } from "react";
-import { UserService } from "@/services/user-management";
-import { useApi } from "@/hooks/useApi";
+import { useState, useEffect, useCallback } from "react";
+import { userService } from "@/services/user-management";
 import { User } from "@/types";
-import {
-  UserCreateRequest as CreateUserRequest,
-  UserUpdateRequest,
-  UserQueryParams,
-  PaginatedResponse,
-} from "@/services/api/types";
-
-// Create one instance and reuse
-const userService = new UserService();
+import { UserQueryParams, PaginatedResponse } from "@/services/api/types";
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const [queryParams, setQueryParams] = useState<UserQueryParams>({
     page: 1,
     per_page: 10,
   });
-  const [isInitialFetch, setIsInitialFetch] = useState(true);
-  const [isManualFetch, setIsManualFetch] = useState(false);
 
-  const fetchUsersRef = useRef<(params?: UserQueryParams) => Promise<any>>();
-  const isMountedRef = useRef<boolean>(true);
+  // Fetch users with current query parameters
+  const fetchUsers = useCallback(
+    async (params?: UserQueryParams) => {
+      setIsLoading(true);
+      setError(null);
 
-  // Fetch users API
-  const {
-    isLoading: isLoadingUsers,
-    error: usersError,
-    execute: fetchUsersApi,
-    reset: resetUsersApi,
-  } = useApi<PaginatedResponse<User>, [UserQueryParams?]>(
-    userService.getUsers.bind(userService),
-    {
-      onError: (error) => {
-        // If we get an authentication error, try to refresh the page once
-        if (
-          error.status === 401 &&
-          !localStorage.getItem("auth_refresh_attempted")
-        ) {
-          localStorage.setItem("auth_refresh_attempted", "true");
-          console.log("Authentication error, refreshing page...");
-          window.location.reload();
-        }
-      },
-    },
-  );
+      try {
+        const finalParams = params || queryParams;
+        console.log("Fetching users with params:", finalParams);
 
-  // Data fetch logic (uses latest queryParams)
-  const fetchUserData = useCallback(async () => {
-    // Prevent fetching if component is unmounted
-    if (!isMountedRef.current) return;
+        const response = await userService.getUsers(finalParams);
+        console.log("Users response:", response);
 
-    // Prevent duplicate API calls when filters change rapidly
-    if (isLoadingUsers && !isManualFetch) return;
-
-    try {
-      const response = await fetchUsersApi(queryParams);
-      if (isMountedRef.current) {
-        // Handle both real API responses and mock data for development
-        if (response?.data) {
+        if (response && response.data) {
           setUsers(response.data);
-          setTotalUsers(response.meta?.total || response.data.length || 0);
+          setTotalUsers(response.meta?.total || response.data.length);
           setCurrentPage(response.meta?.current_page || 1);
         } else if (Array.isArray(response)) {
-          // Fallback for mock data during development
+          // Handle case where response is directly an array
           setUsers(response);
           setTotalUsers(response.length);
-          setCurrentPage(1);
         } else {
-          // Empty response
+          // Handle empty or invalid response
           setUsers([]);
           setTotalUsers(0);
         }
-      }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-      // Set empty users array to prevent UI issues
-      if (isMountedRef.current) {
+
+        return response;
+      } catch (err) {
+        console.error("Error fetching users:", err);
+        setError(err instanceof Error ? err : new Error(String(err)));
         setUsers([]);
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      if (isMountedRef.current) {
-        setIsInitialFetch(false);
-        setIsManualFetch(false);
-      }
-    }
-  }, [fetchUsersApi, queryParams, isLoadingUsers, isManualFetch]);
-
-  // Save ref to avoid circular call
-  fetchUsersRef.current = fetchUserData;
-
-  // Create user
-  const { isLoading: isCreatingUser, execute: createUser } = useApi(
-    userService.createUser.bind(userService),
-    {
-      onSuccess: () => {
-        if (isMountedRef.current) {
-          setIsManualFetch(true);
-          fetchUsersRef.current?.();
-        }
-      },
     },
+    [queryParams],
   );
 
-  // Update user
-  const { isLoading: isUpdatingUser, execute: updateUser } = useApi(
-    async (id: string, data: UserUpdateRequest) =>
-      await userService.updateUser(id, data),
-    {
-      onSuccess: () => {
-        if (isMountedRef.current) {
-          setIsManualFetch(true);
-          fetchUsersRef.current?.();
-        }
-      },
-    },
-  );
-
-  // Delete user
-  const { isLoading: isDeletingUser, execute: deleteUser } = useApi(
-    userService.deleteUser.bind(userService),
-    {
-      onSuccess: () => {
-        if (isMountedRef.current) {
-          setIsManualFetch(true);
-          fetchUsersRef.current?.();
-        }
-      },
-    },
-  );
-
-  // Initial fetch
+  // Initial data fetch
   useEffect(() => {
-    if (isInitialFetch) {
-      fetchUserData();
-    }
+    fetchUsers();
+  }, [fetchUsers]);
 
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [fetchUserData, isInitialFetch]);
-
-  // Update filters & page
+  // Update query parameters
   const updateQueryParams = useCallback(
     (newParams: Partial<UserQueryParams>) => {
-      // Skip update if component is unmounted
-      if (!isMountedRef.current) return;
-
       setQueryParams((prev) => {
         const shouldResetPage =
-          "search" in newParams || "role" in newParams || "status" in newParams;
+          newParams.search !== undefined ||
+          newParams.role !== undefined ||
+          newParams.status !== undefined;
 
         return {
           ...prev,
           ...newParams,
-          page: shouldResetPage ? 1 : (newParams.page ?? prev.page),
+          page: shouldResetPage ? 1 : newParams.page || prev.page,
         };
       });
     },
     [],
   );
 
-  // Pagination
+  // Handle pagination
   const goToPage = useCallback(
-    (page: number) => updateQueryParams({ page }),
+    (page: number) => {
+      updateQueryParams({ page });
+    },
     [updateQueryParams],
   );
-
-  // Manual refresh function
-  const refreshUsers = useCallback(() => {
-    if (isMountedRef.current) {
-      setIsManualFetch(true);
-      resetUsersApi();
-      fetchUserData();
-    }
-  }, [fetchUserData, resetUsersApi]);
 
   return {
     users,
     totalUsers,
     currentPage,
-    isLoading: isLoadingUsers,
-    isCreatingUser,
-    isUpdatingUser,
-    isDeletingUser,
-    error: usersError,
-    fetchUsers: refreshUsers,
-    createUser,
-    updateUser,
-    deleteUser,
+    isLoading,
+    error,
+    fetchUsers,
     updateQueryParams,
     goToPage,
     queryParams,

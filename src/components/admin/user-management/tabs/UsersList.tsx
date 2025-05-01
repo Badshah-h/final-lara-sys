@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import {
   Search,
   MoreHorizontal,
@@ -53,14 +53,7 @@ import { DeleteUserDialog } from "@/components/admin/user-management/dialogs/Del
 import { User } from "@/types";
 import { useUsers } from "@/hooks/user-management/useUsers";
 import { useRoles } from "@/hooks/access-control/useRoles";
-import { Role } from "@/types";
-import {
-  ApiResponse,
-  RoleQueryParams,
-  PaginatedResponse,
-} from "@/services/api/types";
-import { SEARCH_DEBOUNCE_TIME } from "@/constants";
-import { USER_STATUSES_ARRAY } from "@/constants";
+import { SEARCH_DEBOUNCE_TIME, USER_STATUSES_ARRAY } from "@/constants";
 
 // UsersList component with proper role and status filtering
 const UsersList = () => {
@@ -70,14 +63,9 @@ const UsersList = () => {
   const [showEditUserDialog, setShowEditUserDialog] = useState(false);
   const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-
-  const [localFilteredUsers, setLocalFilteredUsers] = useState<User[]>([]);
-  const [isLocalFiltering, setIsLocalFiltering] = useState(false);
-
-  // Use refs to track active timers
-  const searchTimerRef = useRef<number | null>(null);
-  const roleTimerRef = useRef<number | null>(null);
-  const statusTimerRef = useRef<number | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null,
+  );
 
   // Get users data
   const {
@@ -86,163 +74,43 @@ const UsersList = () => {
     currentPage,
     isLoading,
     error,
+    fetchUsers,
     updateQueryParams,
-    deleteUser,
-    fetchUsers: refreshUsers,
   } = useUsers();
 
-  // Debug logging to help identify issues
-  useEffect(() => {
-    console.log("Users data state:", { users, isLoading, error });
-  }, [users, isLoading, error]);
-
   // Get roles data
-  const { roles, isLoading: isLoadingRoles, error: rolesError } = useRoles();
+  const { roles, isLoading: isLoadingRoles } = useRoles();
 
-  const applyLocalFilters = useCallback(
-    (users: User[] | null, query: string, role: string, status: string) => {
-      if (!users) return [];
-
-      return users.filter(
-        (user) =>
-          (query === "" ||
-            user.name.toLowerCase().includes(query.toLowerCase()) ||
-            user.email.toLowerCase().includes(query.toLowerCase())) &&
-          (role === "all" || user.role === role) &&
-          (status === "all" || user.status === status),
-      );
-    },
-    [],
-  );
-
-  // Handle search query changes
+  // Handle search query changes with debounce
   useEffect(() => {
-    // Clear previous timer
-    if (searchTimerRef.current) {
-      clearTimeout(searchTimerRef.current);
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
     }
 
-    setIsLocalFiltering(true);
-    if (users) {
-      const filtered = applyLocalFilters(
-        users,
-        searchQuery,
-        selectedRole,
-        selectedStatus,
-      );
-      setLocalFilteredUsers(filtered);
-    }
-
-    // Set new timer
-    searchTimerRef.current = window.setTimeout(() => {
-      if (searchQuery) {
-        updateQueryParams({ search: searchQuery });
-      } else if (searchQuery === "") {
-        updateQueryParams({ search: undefined });
-      }
-      setIsLocalFiltering(false);
-      searchTimerRef.current = null;
+    const timeout = setTimeout(() => {
+      updateQueryParams({ search: searchQuery || undefined });
     }, SEARCH_DEBOUNCE_TIME);
 
+    setSearchTimeout(timeout);
+
     return () => {
-      if (searchTimerRef.current) {
-        clearTimeout(searchTimerRef.current);
-      }
+      if (timeout) clearTimeout(timeout);
     };
-  }, [
-    searchQuery,
-    users,
-    applyLocalFilters,
-    updateQueryParams,
-    selectedRole,
-    selectedStatus,
-  ]);
+  }, [searchQuery, updateQueryParams]);
 
   // Handle role filter changes
   useEffect(() => {
-    // Clear previous timer
-    if (roleTimerRef.current) {
-      clearTimeout(roleTimerRef.current);
-    }
-
-    setIsLocalFiltering(true);
-    if (users) {
-      const filtered = applyLocalFilters(
-        users,
-        searchQuery,
-        selectedRole,
-        selectedStatus,
-      );
-      setLocalFilteredUsers(filtered);
-    }
-
-    // Set new timer
-    roleTimerRef.current = window.setTimeout(() => {
-      if (selectedRole !== "all") {
-        updateQueryParams({ role: selectedRole });
-      } else {
-        updateQueryParams({ role: undefined });
-      }
-      setIsLocalFiltering(false);
-      roleTimerRef.current = null;
-    }, SEARCH_DEBOUNCE_TIME);
-
-    return () => {
-      if (roleTimerRef.current) {
-        clearTimeout(roleTimerRef.current);
-      }
-    };
-  }, [
-    selectedRole,
-    users,
-    applyLocalFilters,
-    updateQueryParams,
-    searchQuery,
-    selectedStatus,
-  ]);
+    updateQueryParams({
+      role: selectedRole !== "all" ? selectedRole : undefined,
+    });
+  }, [selectedRole, updateQueryParams]);
 
   // Handle status filter changes
   useEffect(() => {
-    // Clear previous timer
-    if (statusTimerRef.current) {
-      clearTimeout(statusTimerRef.current);
-    }
-
-    setIsLocalFiltering(true);
-    if (users) {
-      const filtered = applyLocalFilters(
-        users,
-        searchQuery,
-        selectedRole,
-        selectedStatus,
-      );
-      setLocalFilteredUsers(filtered);
-    }
-
-    // Set new timer
-    statusTimerRef.current = window.setTimeout(() => {
-      if (selectedStatus !== "all") {
-        updateQueryParams({ status: selectedStatus });
-      } else {
-        updateQueryParams({ status: undefined });
-      }
-      setIsLocalFiltering(false);
-      statusTimerRef.current = null;
-    }, SEARCH_DEBOUNCE_TIME);
-
-    return () => {
-      if (statusTimerRef.current) {
-        clearTimeout(statusTimerRef.current);
-      }
-    };
-  }, [
-    selectedStatus,
-    users,
-    applyLocalFilters,
-    updateQueryParams,
-    searchQuery,
-    selectedRole,
-  ]);
+    updateQueryParams({
+      status: selectedStatus !== "all" ? selectedStatus : undefined,
+    });
+  }, [selectedStatus, updateQueryParams]);
 
   const openEditUserDialog = (user: User) => {
     setSelectedUser(user);
@@ -255,11 +123,9 @@ const UsersList = () => {
   };
 
   // Handle manual refresh
-  const handleRefresh = useCallback(() => {
-    refreshUsers();
-  }, [refreshUsers]);
-
-  const displayedUsers = isLocalFiltering ? localFilteredUsers : users || [];
+  const handleRefresh = () => {
+    fetchUsers();
+  };
 
   return (
     <>
@@ -317,13 +183,6 @@ const UsersList = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {rolesError && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertDescription>
-                Error loading roles: {rolesError.message || "Please try again."}
-              </AlertDescription>
-            </Alert>
-          )}
           <Table>
             <TableHeader>
               <TableRow>
@@ -348,6 +207,7 @@ const UsersList = () => {
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8">
                     <div className="flex flex-col items-center justify-center text-destructive">
+                      <AlertCircle className="h-8 w-8 mb-2" />
                       <p>Error loading users</p>
                       <p className="text-sm">
                         {error.message || "Please try again."}
@@ -364,14 +224,8 @@ const UsersList = () => {
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : displayedUsers.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8">
-                    No users found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayedUsers.map((user) => (
+              ) : users && users.length > 0 ? (
+                users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="flex items-center space-x-3">
@@ -379,7 +233,12 @@ const UsersList = () => {
                           <AvatarImage src={user.avatar} />
                           <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
                         </Avatar>
-                        <span className="font-medium">{user.name}</span>
+                        <div>
+                          <div className="font-medium">{user.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {user.email}
+                          </div>
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -396,7 +255,13 @@ const UsersList = () => {
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger>
-                          <MoreHorizontal className="h-5 w-5 text-muted-foreground" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
@@ -405,8 +270,18 @@ const UsersList = () => {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
+                            <Key className="mr-2 h-4 w-4" />
+                            Reset Password
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => openDeleteUserDialog(user)}
+                            className="text-destructive"
                           >
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
@@ -416,6 +291,12 @@ const UsersList = () => {
                     </TableCell>
                   </TableRow>
                 ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">
+                    No users found
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
@@ -423,7 +304,7 @@ const UsersList = () => {
         <CardFooter>
           <div className="flex items-center justify-between w-full">
             <p className="text-sm text-muted-foreground">
-              Showing {displayedUsers.length} of {totalUsers} users
+              Showing {users?.length || 0} of {totalUsers} users
             </p>
             <div className="flex items-center space-x-2">
               <Button
@@ -452,14 +333,14 @@ const UsersList = () => {
         </CardFooter>
       </Card>
 
-      {showEditUserDialog && (
+      {showEditUserDialog && selectedUser && (
         <EditUserDialog
           user={selectedUser}
           open={showEditUserDialog}
           onOpenChange={setShowEditUserDialog}
         />
       )}
-      {showDeleteUserDialog && (
+      {showDeleteUserDialog && selectedUser && (
         <DeleteUserDialog
           user={selectedUser}
           open={showDeleteUserDialog}

@@ -18,7 +18,9 @@ export class UserService {
    */
   async getUsers(params?: UserQueryParams): Promise<PaginatedResponse<User>> {
     try {
+      console.log("Making API request to get users with params:", params);
       const response = await api.get(`${API_BASE_URL}/users`, { params });
+      console.log("API response for users:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -210,56 +212,6 @@ export class UserService {
       return {
         data: null,
         message: "User deleted successfully",
-        success: true,
-      };
-    }
-  }
-
-  /**
-   * Send password reset email to user
-   */
-  async sendPasswordReset(email: string): Promise<ApiResponse<null>> {
-    try {
-      const response = await api.post(`${API_BASE_URL}/users/password-reset`, {
-        email,
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error sending password reset for ${email}:`, error);
-      // Return mock success response for development
-      return {
-        data: null,
-        message: "Password reset email sent successfully",
-        success: true,
-      };
-    }
-  }
-
-  /**
-   * Change user status (activate/deactivate)
-   */
-  async changeUserStatus(
-    id: string,
-    status: string,
-  ): Promise<ApiResponse<User>> {
-    try {
-      const response = await api.patch(`${API_BASE_URL}/users/${id}/status`, {
-        status,
-      });
-      return response.data;
-    } catch (error) {
-      console.error(`Error changing status for user ${id}:`, error);
-      // Get current user data first (for development mock)
-      const currentUser = await this.getUser(id);
-
-      // Return mock data for development
-      return {
-        data: {
-          ...currentUser.data,
-          status,
-          updated_at: new Date().toISOString(),
-        },
-        message: `User status changed to ${status} successfully`,
         success: true,
       };
     }
