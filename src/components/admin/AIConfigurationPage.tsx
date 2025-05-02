@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Save } from "lucide-react";
+import { Save, RefreshCw } from "lucide-react";
 import AIConfigSidebar from "./AIConfigSidebar";
 import AIModelManager from "./ai-configuration/AIModelManager";
 import KnowledgeBaseManager from "./ai-configuration/KnowledgeBaseManager";
@@ -12,28 +12,90 @@ import FollowUpManager from "./ai-configuration/FollowUpManager";
 const AIConfigurationPage = () => {
   const [activeModule, setActiveModule] = useState("models");
   const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleModuleChange = useCallback(
+    (module: string) => {
+      // Prompt user if there are unsaved changes
+      if (hasChanges) {
+        const confirmChange = window.confirm(
+          "You have unsaved changes. Are you sure you want to navigate away?",
+        );
+        if (!confirmChange) return;
+      }
+      setActiveModule(module);
+    },
+    [hasChanges],
+  );
 
   const handleSaveChanges = () => {
-    // Implement save functionality
-    setHasChanges(false);
+    setIsSaving(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsSaving(false);
+      setHasChanges(false);
+    }, 1000);
   };
+
+  // This would be called by child components when they make changes
+  const notifyChanges = useCallback(() => {
+    setHasChanges(true);
+  }, []);
 
   const renderActiveModule = () => {
     switch (activeModule) {
       case "models":
-        return <AIModelManager />;
+        return <AIModelManager onSave={() => setHasChanges(false)} />;
       case "knowledge-base":
-        return <KnowledgeBaseManager />;
+        return <KnowledgeBaseManager standalone={true} />;
       case "prompts":
-        return <PromptTemplateManager />;
+        return <PromptTemplateManager standalone={true} />;
       case "formatting":
-        return <ResponseFormatterManager />;
+        return <ResponseFormatterManager standalone={true} />;
       case "branding":
-        return <BrandingEngineManager />;
+        return <BrandingEngineManager standalone={true} />;
       case "follow-up":
-        return <FollowUpManager />;
+        return <FollowUpManager standalone={true} />;
       default:
-        return <AIModelManager />;
+        return <AIModelManager onSave={() => setHasChanges(false)} />;
+    }
+  };
+
+  const getModuleTitle = () => {
+    switch (activeModule) {
+      case "models":
+        return "AI Models";
+      case "knowledge-base":
+        return "Knowledge Base";
+      case "prompts":
+        return "Prompt Templates";
+      case "formatting":
+        return "Response Formatting";
+      case "branding":
+        return "Branding Engine";
+      case "follow-up":
+        return "Follow-Up Engine";
+      default:
+        return "AI Models";
+    }
+  };
+
+  const getModuleDescription = () => {
+    switch (activeModule) {
+      case "models":
+        return "Configure AI models and providers";
+      case "knowledge-base":
+        return "Connect your AI to knowledge sources";
+      case "prompts":
+        return "Create and manage prompt templates";
+      case "formatting":
+        return "Configure how AI responses are structured";
+      case "branding":
+        return "Apply brand voice and styling to responses";
+      case "follow-up":
+        return "Configure follow-up suggestions";
+      default:
+        return "Configure AI models and providers";
     }
   };
 
@@ -41,36 +103,34 @@ const AIConfigurationPage = () => {
     <div className="flex h-full">
       <AIConfigSidebar
         activeModule={activeModule}
-        onModuleChange={setActiveModule}
+        onModuleChange={handleModuleChange}
       />
       <div className="flex-1 p-6 overflow-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-3xl font-bold">
-              {activeModule === "models" && "AI Models"}
-              {activeModule === "knowledge-base" && "Knowledge Base"}
-              {activeModule === "prompts" && "Prompt Templates"}
-              {activeModule === "formatting" && "Response Formatting"}
-              {activeModule === "branding" && "Branding Engine"}
-              {activeModule === "follow-up" && "Follow-Up Engine"}
-            </h1>
-            <p className="text-muted-foreground">
-              {activeModule === "models" && "Configure AI models and providers"}
-              {activeModule === "knowledge-base" &&
-                "Connect your AI to knowledge sources"}
-              {activeModule === "prompts" &&
-                "Create and manage prompt templates"}
-              {activeModule === "formatting" &&
-                "Configure how AI responses are structured"}
-              {activeModule === "branding" &&
-                "Apply brand voice and styling to responses"}
-              {activeModule === "follow-up" &&
-                "Configure follow-up suggestions"}
-            </p>
+            <h1 className="text-3xl font-bold">{getModuleTitle()}</h1>
+            <p className="text-muted-foreground">{getModuleDescription()}</p>
           </div>
-          <Button onClick={handleSaveChanges} disabled={!hasChanges}>
-            <Save className="mr-2 h-4 w-4" /> Save Changes
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.location.reload()}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+            </Button>
+            <Button
+              onClick={handleSaveChanges}
+              disabled={!hasChanges || isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" /> Save Changes
+                </>
+              )}
+            </Button>
+          </div>
         </div>
 
         {renderActiveModule()}
