@@ -30,6 +30,8 @@ const RoleCard = ({ role, onEdit, onDelete }: RoleCardProps) => {
 
   // Helper function to check if role has any permission in a category
   const hasPermissionInCategory = (category: string): boolean => {
+    if (!role.permissions) return false;
+
     switch (category) {
       case "User Management":
         return role.permissions.some((p) =>
