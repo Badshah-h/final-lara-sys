@@ -33,8 +33,8 @@ export function EditRoleDialog({
   const [editedRole, setEditedRole] = useState<EditedRole>({
     id: role.id,
     name: role.name,
-    description: role.description,
-    permissions: [...role.permissions],
+    description: role.description || "",
+    permissions: Array.isArray(role.permissions) ? [...role.permissions] : [],
   });
 
   const handleEditRole = () => {

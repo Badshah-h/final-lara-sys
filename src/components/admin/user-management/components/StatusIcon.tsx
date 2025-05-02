@@ -5,7 +5,7 @@ interface StatusIconProps {
 }
 
 const StatusIcon = ({ status }: StatusIconProps) => {
-  switch (status) {
+  switch (status?.toLowerCase()) {
     case "active":
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     case "inactive":

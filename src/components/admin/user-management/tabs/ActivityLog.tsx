@@ -17,19 +17,77 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useActivityLogs } from "@/hooks/user-management/useActivityLogs";
+
+// Mock data for activity logs
+const mockActivityLogs = [
+  {
+    id: "1",
+    user_name: "John Doe",
+    user_avatar: "",
+    action: "Logged in",
+    description: "User logged in successfully",
+    created_at: "2023-06-15T10:30:00",
+  },
+  {
+    id: "2",
+    user_name: "Admin User",
+    user_avatar: "",
+    action: "Created user",
+    description: "Created new user: jane@example.com",
+    created_at: "2023-06-14T14:45:00",
+  },
+  {
+    id: "3",
+    user_name: "Jane Smith",
+    user_avatar: "",
+    action: "Updated permissions",
+    description: "Updated permissions for role: Editor",
+    created_at: "2023-06-14T09:15:00",
+  },
+  {
+    id: "4",
+    user_name: "System",
+    user_avatar: "",
+    action: "Backup completed",
+    description: "Weekly backup completed successfully",
+    created_at: "2023-06-13T02:00:00",
+  },
+  {
+    id: "5",
+    user_name: "Admin User",
+    user_avatar: "",
+    action: "Settings changed",
+    description: "Updated system email settings",
+    created_at: "2023-06-12T16:30:00",
+  },
+];
 
 const ActivityLog = () => {
-  const {
-    activityLogs,
-    totalLogs,
-    currentPage,
-    isLoading,
-    error,
-    fetchLogs,
-    exportLogs,
-    goToPage,
-  } = useActivityLogs();
+  const [activityLogs, setActivityLogs] = useState(mockActivityLogs);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [totalLogs] = useState(mockActivityLogs.length);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const fetchLogs = () => {
+    setIsLoading(true);
+    // Simulate API call
+    setTimeout(() => {
+      setActivityLogs(mockActivityLogs);
+      setIsLoading(false);
+    }, 500);
+  };
+
+  const exportLogs = async (format) => {
+    console.log(`Exporting logs in ${format} format`);
+    // Implementation would go here
+    return Promise.resolve();
+  };
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+    // In a real implementation, this would fetch data for the new page
+  };
 
   const handleRefresh = () => {
     fetchLogs();

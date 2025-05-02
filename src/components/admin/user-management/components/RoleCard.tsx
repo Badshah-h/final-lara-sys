@@ -10,7 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Role } from "../../../../types";
+import { Role } from "@/types";
 
 interface RoleCardProps {
   role: Role;
@@ -34,46 +34,59 @@ const RoleCard = ({ role, onEdit, onDelete }: RoleCardProps) => {
 
     switch (category) {
       case "User Management":
-        return role.permissions.some((p) =>
-          [
-            "create_users",
-            "edit_users",
-            "delete_users",
-            "assign_roles",
-          ].includes(p),
+        return (
+          role.permissions?.some((p) =>
+            [
+              "create_users",
+              "edit_users",
+              "delete_users",
+              "assign_roles",
+            ].includes(p),
+          ) || false
         );
       case "AI Configuration":
-        return role.permissions.some((p) =>
-          ["manage_models", "edit_prompts", "test_ai", "view_ai_logs"].includes(
-            p,
-          ),
+        return (
+          role.permissions?.some((p) =>
+            [
+              "manage_models",
+              "edit_prompts",
+              "test_ai",
+              "view_ai_logs",
+            ].includes(p),
+          ) || false
         );
       case "Widget Builder":
-        return role.permissions.some((p) =>
-          [
-            "create_widgets",
-            "edit_widgets",
-            "publish_widgets",
-            "delete_widgets",
-          ].includes(p),
+        return (
+          role.permissions?.some((p) =>
+            [
+              "create_widgets",
+              "edit_widgets",
+              "publish_widgets",
+              "delete_widgets",
+            ].includes(p),
+          ) || false
         );
       case "Knowledge Base":
-        return role.permissions.some((p) =>
-          [
-            "create_kb_articles",
-            "edit_kb_articles",
-            "delete_kb_articles",
-            "manage_kb_categories",
-          ].includes(p),
+        return (
+          role.permissions?.some((p) =>
+            [
+              "create_kb_articles",
+              "edit_kb_articles",
+              "delete_kb_articles",
+              "manage_kb_categories",
+            ].includes(p),
+          ) || false
         );
       case "System Settings":
-        return role.permissions.some((p) =>
-          [
-            "manage_api_keys",
-            "billing_subscription",
-            "system_backup",
-            "view_audit_logs",
-          ].includes(p),
+        return (
+          role.permissions?.some((p) =>
+            [
+              "manage_api_keys",
+              "billing_subscription",
+              "system_backup",
+              "view_audit_logs",
+            ].includes(p),
+          ) || false
         );
       default:
         return false;
@@ -85,7 +98,7 @@ const RoleCard = ({ role, onEdit, onDelete }: RoleCardProps) => {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle>{role.name}</CardTitle>
-          <Badge>{role.userCount} Users</Badge>
+          <Badge>{role.userCount || 0} Users</Badge>
         </div>
         <CardDescription>{role.description}</CardDescription>
       </CardHeader>
