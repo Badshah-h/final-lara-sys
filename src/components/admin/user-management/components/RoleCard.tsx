@@ -1,4 +1,11 @@
-import { CheckCircle2, XCircle, Edit, Trash2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Edit,
+  Trash2,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -10,12 +17,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Role } from "@/types";
+import { useState } from "react";
+import RolePermissionDisplay from "./RolePermissionDisplay";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface RoleCardProps {
-  role: Role;
-  onEdit: (role: Role) => void;
-  onDelete: (role: Role) => void;
+  role: {
+    id: string;
+    name: string;
+    description?: string;
+    permissions?: any[];
+    userCount?: number;
+  };
+  onEdit?: (role: any) => void;
+  onDelete?: (role: any) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -27,7 +46,9 @@ const RoleCard = ({
   canEdit = true,
   canDelete = true,
 }: RoleCardProps) => {
-  // Define the permission categories to display
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  // Define common permission categories
   const permissionCategories = [
     "User Management",
     "AI Configuration",
@@ -36,79 +57,45 @@ const RoleCard = ({
     "System Settings",
   ];
 
-  // Helper function to check if role has any permission in a category
-  const hasPermissionInCategory = (category: string): boolean => {
-    if (!role.permissions) return false;
-
-    switch (category) {
-      case "User Management":
-        return (
-          role.permissions?.some((p) =>
-            [
-              "create_users",
-              "edit_users",
-              "delete_users",
-              "assign_roles",
-            ].includes(p),
-          ) || false
-        );
-      case "AI Configuration":
-        return (
-          role.permissions?.some((p) =>
-            [
-              "manage_models",
-              "edit_prompts",
-              "test_ai",
-              "view_ai_logs",
-            ].includes(p),
-          ) || false
-        );
-      case "Widget Builder":
-        return (
-          role.permissions?.some((p) =>
-            [
-              "create_widgets",
-              "edit_widgets",
-              "publish_widgets",
-              "delete_widgets",
-            ].includes(p),
-          ) || false
-        );
-      case "Knowledge Base":
-        return (
-          role.permissions?.some((p) =>
-            [
-              "create_kb_articles",
-              "edit_kb_articles",
-              "delete_kb_articles",
-              "manage_kb_categories",
-            ].includes(p),
-          ) || false
-        );
-      case "System Settings":
-        return (
-          role.permissions?.some((p) =>
-            [
-              "manage_api_keys",
-              "billing_subscription",
-              "system_backup",
-              "view_audit_logs",
-            ].includes(p),
-          ) || false
-        );
-      default:
-        return false;
+  // Check if role has permissions in a specific category
+  const hasPermissionInCategory = (category: string) => {
+    if (!role.permissions || !Array.isArray(role.permissions)) {
+      return false;
     }
+
+    return role.permissions.some((permission) => {
+      const permId =
+        typeof permission === "string" ? permission : permission.id;
+
+      switch (category) {
+        case "User Management":
+          return permId.includes("user");
+        case "AI Configuration":
+          return permId.includes("ai") || permId.includes("model");
+        case "Widget Builder":
+          return permId.includes("widget");
+        case "Knowledge Base":
+          return permId.includes("kb") || permId.includes("knowledge");
+        case "System Settings":
+          return permId.includes("system") || permId.includes("setting");
+        default:
+          return false;
+      }
+    });
   };
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>{role.name}</CardTitle>
-          <Badge>{role.userCount || 0} Users</Badge>
+          <div>
+            <CardTitle>{role.name}</CardTitle>
+            <CardDescription>{role.description}</CardDescription>
+          </div>
+          <Badge variant="outline">
+            {role.userCount || 0} {role.userCount === 1 ? "User" : "Users"}
+          </Badge>
         </div>
-        <CardDescription>{role.description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -123,32 +110,55 @@ const RoleCard = ({
             </div>
           ))}
         </div>
+
+        <Collapsible
+          open={isExpanded}
+          onOpenChange={setIsExpanded}
+          className="pt-2"
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex w-full justify-between p-0 h-8"
+            >
+              <span className="text-sm font-medium">
+                {isExpanded
+                  ? "Hide detailed permissions"
+                  : "Show detailed permissions"}
+              </span>
+              {isExpanded ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <RolePermissionDisplay role={role} />
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
-      <CardFooter className="border-t pt-4 flex gap-2">
-        {canEdit && (
-          <Button
-            variant="outline"
-            className="flex-1"
-            onClick={() => onEdit(role)}
-          >
-            <Edit className="mr-2 h-4 w-4" />
-            Edit Role
-          </Button>
-        )}
+      <CardFooter className="flex justify-end space-x-2">
         {canDelete && (
           <Button
             variant="outline"
-            className={canEdit ? "flex-none" : "flex-1"}
-            onClick={() => onDelete(role)}
+            size="sm"
+            onClick={() => onDelete && onDelete(role)}
           >
-            <Trash2 className="h-4 w-4" />
-            {!canEdit && <span className="ml-2">Delete Role</span>}
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete
           </Button>
         )}
-        {!canEdit && !canDelete && (
-          <div className="text-sm text-muted-foreground py-2">
-            You don't have permission to modify this role
-          </div>
+        {canEdit && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => onEdit && onEdit(role)}
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
         )}
       </CardFooter>
     </Card>
