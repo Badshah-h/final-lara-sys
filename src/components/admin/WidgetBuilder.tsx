@@ -10,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import {
   Select,
   SelectContent,
@@ -17,63 +19,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import {
-  Palette,
   Code,
+  Smartphone,
+  MonitorIcon,
+  Palette,
+  Settings,
+  Save,
   Copy,
   Check,
-  MessageCircle,
-  Smartphone,
-  Desktop,
-  Save,
+  Eye,
 } from "lucide-react";
-import ChatWidget from "../chat/ChatWidget";
 
 const WidgetBuilder = () => {
+  const [activeTab, setActiveTab] = useState("appearance");
+  const [previewDevice, setPreviewDevice] = useState("desktop");
   const [copied, setCopied] = useState(false);
-  const [widgetConfig, setWidgetConfig] = useState({
-    position: "bottom-right",
-    primaryColor: "#1e40af",
-    secondaryColor: "#e2e8f0",
-    botName: "AI Assistant",
-    welcomeMessage: "Hello! How can I help you today?",
-    logoUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=chat-bot",
-    size: "medium",
-    borderRadius: "rounded",
-    fontFamily: "Inter",
-    autoOpen: false,
-    autoOpenDelay: 5,
-    autoOpenTrigger: "time",
-    mobileOptimized: true,
-  });
-
-  const handleConfigChange = (
-    key: string,
-    value: string | boolean | number,
-  ) => {
-    setWidgetConfig((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
 
   const handleCopyCode = () => {
-    // In a real implementation, this would generate and copy the embed code
+    // In a real implementation, this would copy the widget embed code
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
-
-  const embedCode = `<script src="https://chat-widget.example.com/embed.js" 
-  data-widget-id="widget-123456" 
-  data-position="${widgetConfig.position}"
-  data-primary-color="${widgetConfig.primaryColor}"
-  data-bot-name="${widgetConfig.botName}"
-  async>
-</script>`;
 
   return (
     <div className="space-y-6">
@@ -91,25 +58,26 @@ const WidgetBuilder = () => {
 
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-6">
-          <Tabs defaultValue="appearance">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs
+            defaultValue="appearance"
+            value={activeTab}
+            onValueChange={setActiveTab}
+          >
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="appearance">
                 <Palette className="mr-2 h-4 w-4" /> Appearance
               </TabsTrigger>
-              <TabsTrigger value="behavior">
-                <MessageCircle className="mr-2 h-4 w-4" /> Behavior
-              </TabsTrigger>
-              <TabsTrigger value="embed">
-                <Code className="mr-2 h-4 w-4" /> Embed Code
-              </TabsTrigger>
+              <TabsTrigger value="behavior">Behavior</TabsTrigger>
+              <TabsTrigger value="content">Content</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
             </TabsList>
 
             <TabsContent value="appearance" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Visual Customization</CardTitle>
+                  <CardTitle>Widget Appearance</CardTitle>
                   <CardDescription>
-                    Customize the look and feel of your chat widget
+                    Customize how your chat widget looks
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -119,15 +87,9 @@ const WidgetBuilder = () => {
                       <div className="flex gap-2">
                         <div
                           className="h-10 w-10 rounded border"
-                          style={{ backgroundColor: widgetConfig.primaryColor }}
+                          style={{ backgroundColor: "#1e40af" }}
                         />
-                        <Input
-                          type="text"
-                          value={widgetConfig.primaryColor}
-                          onChange={(e) =>
-                            handleConfigChange("primaryColor", e.target.value)
-                          }
-                        />
+                        <Input type="text" value="#1e40af" />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -135,29 +97,16 @@ const WidgetBuilder = () => {
                       <div className="flex gap-2">
                         <div
                           className="h-10 w-10 rounded border"
-                          style={{
-                            backgroundColor: widgetConfig.secondaryColor,
-                          }}
+                          style={{ backgroundColor: "#e2e8f0" }}
                         />
-                        <Input
-                          type="text"
-                          value={widgetConfig.secondaryColor}
-                          onChange={(e) =>
-                            handleConfigChange("secondaryColor", e.target.value)
-                          }
-                        />
+                        <Input type="text" value="#e2e8f0" />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Widget Position</Label>
-                    <Select
-                      value={widgetConfig.position}
-                      onValueChange={(value) =>
-                        handleConfigChange("position", value)
-                      }
-                    >
+                    <Select defaultValue="bottom-right">
                       <SelectTrigger>
                         <SelectValue placeholder="Select position" />
                       </SelectTrigger>
@@ -174,12 +123,7 @@ const WidgetBuilder = () => {
 
                   <div className="space-y-2">
                     <Label>Widget Size</Label>
-                    <Select
-                      value={widgetConfig.size}
-                      onValueChange={(value) =>
-                        handleConfigChange("size", value)
-                      }
-                    >
+                    <Select defaultValue="medium">
                       <SelectTrigger>
                         <SelectValue placeholder="Select size" />
                       </SelectTrigger>
@@ -191,83 +135,14 @@ const WidgetBuilder = () => {
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Border Radius</Label>
-                    <Select
-                      value={widgetConfig.borderRadius}
-                      onValueChange={(value) =>
-                        handleConfigChange("borderRadius", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select border radius" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="square">Square</SelectItem>
-                        <SelectItem value="rounded">Rounded</SelectItem>
-                        <SelectItem value="full">Fully Rounded</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Font Family</Label>
-                    <Select
-                      value={widgetConfig.fontFamily}
-                      onValueChange={(value) =>
-                        handleConfigChange("fontFamily", value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select font" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Inter">Inter</SelectItem>
-                        <SelectItem value="Roboto">Roboto</SelectItem>
-                        <SelectItem value="Open Sans">Open Sans</SelectItem>
-                        <SelectItem value="Lato">Lato</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Content Customization</CardTitle>
-                  <CardDescription>
-                    Customize the text and images in your chat widget
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Bot Name</Label>
-                    <Input
-                      value={widgetConfig.botName}
-                      onChange={(e) =>
-                        handleConfigChange("botName", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Welcome Message</Label>
-                    <Textarea
-                      value={widgetConfig.welcomeMessage}
-                      onChange={(e) =>
-                        handleConfigChange("welcomeMessage", e.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Logo URL</Label>
-                    <Input
-                      value={widgetConfig.logoUrl}
-                      onChange={(e) =>
-                        handleConfigChange("logoUrl", e.target.value)
-                      }
-                    />
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="dark-mode">Dark Mode Support</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Enable dark mode for your widget
+                      </p>
+                    </div>
+                    <Switch id="dark-mode" checked={true} />
                   </div>
                 </CardContent>
               </Card>
@@ -284,93 +159,35 @@ const WidgetBuilder = () => {
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="auto-open">Auto-Open Widget</Label>
+                      <Label htmlFor="auto-open">Auto Open</Label>
                       <p className="text-sm text-muted-foreground">
-                        Automatically open the chat widget
+                        Automatically open the chat after page load
                       </p>
                     </div>
-                    <Switch
-                      id="auto-open"
-                      checked={widgetConfig.autoOpen}
-                      onCheckedChange={(checked) =>
-                        handleConfigChange("autoOpen", checked)
-                      }
-                    />
+                    <Switch id="auto-open" />
                   </div>
-
-                  {widgetConfig.autoOpen && (
-                    <>
-                      <div className="space-y-2">
-                        <Label>Auto-Open Trigger</Label>
-                        <Select
-                          value={widgetConfig.autoOpenTrigger}
-                          onValueChange={(value) =>
-                            handleConfigChange("autoOpenTrigger", value)
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select trigger" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="time">Time on Page</SelectItem>
-                            <SelectItem value="scroll">
-                              Scroll Percentage
-                            </SelectItem>
-                            <SelectItem value="exit">Exit Intent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      {widgetConfig.autoOpenTrigger === "time" && (
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <Label>
-                              Delay (seconds): {widgetConfig.autoOpenDelay}
-                            </Label>
-                          </div>
-                          <Slider
-                            value={[widgetConfig.autoOpenDelay as number]}
-                            min={1}
-                            max={30}
-                            step={1}
-                            onValueChange={(value) =>
-                              handleConfigChange("autoOpenDelay", value[0])
-                            }
-                          />
-                        </div>
-                      )}
-
-                      {widgetConfig.autoOpenTrigger === "scroll" && (
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <Label>Scroll Percentage: 50%</Label>
-                          </div>
-                          <Slider value={[50]} min={10} max={100} step={5} />
-                        </div>
-                      )}
-                    </>
-                  )}
-
                   <Separator />
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="mobile-optimized">
-                        Mobile Optimization
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Optimize widget for mobile devices
-                      </p>
-                    </div>
-                    <Switch
-                      id="mobile-optimized"
-                      checked={widgetConfig.mobileOptimized}
-                      onCheckedChange={(checked) =>
-                        handleConfigChange("mobileOptimized", checked)
-                      }
-                    />
+                  <div className="space-y-2">
+                    <Label>Auto Open Delay (seconds)</Label>
+                    <Input type="number" value="5" min="0" max="60" />
                   </div>
-
+                  <div className="space-y-2">
+                    <Label>Auto Open Trigger</Label>
+                    <Select defaultValue="time">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select trigger" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="time">Time Delay</SelectItem>
+                        <SelectItem value="scroll">
+                          Scroll Percentage
+                        </SelectItem>
+                        <SelectItem value="exit">Exit Intent</SelectItem>
+                        <SelectItem value="inactive">User Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Separator />
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <Label htmlFor="sound-effects">Sound Effects</Label>
@@ -378,170 +195,81 @@ const WidgetBuilder = () => {
                         Play sound on new messages
                       </p>
                     </div>
-                    <Switch id="sound-effects" />
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="persistent-chat">Persistent Chat</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Save chat history between sessions
-                      </p>
-                    </div>
-                    <Switch id="persistent-chat" checked />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>User Registration</CardTitle>
-                  <CardDescription>
-                    Configure user registration requirements
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-0.5">
-                      <Label htmlFor="require-registration">
-                        Require Registration
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        Users must register before chatting
-                      </p>
-                    </div>
-                    <Switch id="require-registration" checked />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Required Fields</Label>
-                    <div className="grid gap-2">
-                      <div className="flex items-center space-x-2">
-                        <Switch id="field-name" checked />
-                        <Label htmlFor="field-name">Full Name</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="field-email" />
-                        <Label htmlFor="field-email">Email</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="field-phone" checked />
-                        <Label htmlFor="field-phone">Phone Number</Label>
-                      </div>
-                    </div>
+                    <Switch id="sound-effects" checked={true} />
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="embed" className="space-y-4">
+            <TabsContent value="content" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Embed Code</CardTitle>
+                  <CardTitle>Widget Content</CardTitle>
                   <CardDescription>
-                    Add this code to your website to embed the chat widget
+                    Customize the text and content of your widget
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="relative">
-                    <pre className="bg-muted p-4 rounded-md overflow-x-auto">
-                      <code className="text-sm">{embedCode}</code>
-                    </pre>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="absolute top-2 right-2"
-                      onClick={handleCopyCode}
-                    >
-                      {copied ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label>Installation Method</Label>
-                    <Tabs defaultValue="script">
-                      <TabsList className="grid w-full grid-cols-3">
-                        <TabsTrigger value="script">Script Tag</TabsTrigger>
-                        <TabsTrigger value="iframe">iFrame</TabsTrigger>
-                        <TabsTrigger value="npm">NPM Package</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="script" className="pt-4">
-                        <p className="text-sm text-muted-foreground">
-                          Add the script tag to your HTML file, preferably right
-                          before the closing body tag.
-                        </p>
-                      </TabsContent>
-                      <TabsContent value="iframe" className="pt-4">
-                        <p className="text-sm text-muted-foreground">
-                          Use an iframe for complete isolation from your
-                          website's styles and scripts.
-                        </p>
-                      </TabsContent>
-                      <TabsContent value="npm" className="pt-4">
-                        <p className="text-sm text-muted-foreground">
-                          Install via NPM for React, Vue, or Angular
-                          applications.
-                        </p>
-                        <pre className="bg-muted p-2 rounded-md mt-2">
-                          <code className="text-sm">
-                            npm install @chat-widget/react
-                          </code>
-                        </pre>
-                      </TabsContent>
-                    </Tabs>
+                    <Label>Widget Title</Label>
+                    <Input type="text" value="Chat Support" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Welcome Message</Label>
+                    <Input
+                      type="text"
+                      value="Hello! How can I help you today?"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Placeholder Text</Label>
+                    <Input type="text" value="Type your message here..." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Offline Message</Label>
+                    <Input
+                      type="text"
+                      value="We're currently offline. Please leave a message."
+                    />
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
 
+            <TabsContent value="advanced" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Integration Options</CardTitle>
+                  <CardTitle>Advanced Settings</CardTitle>
                   <CardDescription>
-                    Additional options for embedding the chat widget
+                    Configure advanced options for your widget
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="responsive" checked />
-                        <Label htmlFor="responsive">Responsive Design</Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Automatically adapt to screen size
+                  <div className="space-y-2">
+                    <Label>Widget ID</Label>
+                    <Input type="text" value="my-chat-widget" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Domain Restriction</Label>
+                    <Input type="text" placeholder="e.g., example.com" />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="secure-mode">Secure Mode</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Enable additional security features
                       </p>
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="shadow-dom" checked />
-                        <Label htmlFor="shadow-dom">Use Shadow DOM</Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Isolate widget styles from your website
+                    <Switch id="secure-mode" checked={true} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="data-collection">Data Collection</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Collect user data for analytics
                       </p>
                     </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="lazy-load" checked />
-                        <Label htmlFor="lazy-load">Lazy Loading</Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Load widget only when needed
-                      </p>
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="analytics" checked />
-                        <Label htmlFor="analytics">Include Analytics</Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Track widget usage and performance
-                      </p>
-                    </div>
+                    <Switch id="data-collection" checked={true} />
                   </div>
                 </CardContent>
               </Card>
@@ -552,22 +280,111 @@ const WidgetBuilder = () => {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Preview</CardTitle>
+              <CardTitle>Widget Preview</CardTitle>
               <CardDescription>
-                Live preview of your chat widget
+                See how your widget will look in real-time
               </CardDescription>
             </CardHeader>
-            <CardContent className="p-0 h-[500px] relative bg-muted/20 overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-full h-full relative">
-                  <ChatWidget
-                    position={widgetConfig.position as any}
-                    primaryColor={widgetConfig.primaryColor}
-                    secondaryColor={widgetConfig.secondaryColor}
-                    botName={widgetConfig.botName}
-                    welcomeMessage={widgetConfig.welcomeMessage}
-                    logoUrl={widgetConfig.logoUrl}
-                  />
+            <CardContent className="p-0">
+              <div className="border-b">
+                <div className="flex justify-center p-2">
+                  <Button
+                    variant={
+                      previewDevice === "desktop" ? "secondary" : "ghost"
+                    }
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => setPreviewDevice("desktop")}
+                  >
+                    <MonitorIcon className="h-4 w-4" />
+                    Desktop
+                  </Button>
+                  <Button
+                    variant={previewDevice === "mobile" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => setPreviewDevice("mobile")}
+                  >
+                    <Smartphone className="h-4 w-4" />
+                    Mobile
+                  </Button>
+                </div>
+              </div>
+              <div className="h-[400px] relative bg-muted/20 overflow-hidden">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div
+                    className={`${previewDevice === "mobile" ? "w-[320px]" : "w-[400px]"} h-[350px] bg-background rounded-lg shadow-lg overflow-hidden border`}
+                  >
+                    <div
+                      className="p-4 flex justify-between items-center"
+                      style={{ backgroundColor: "#1e40af", color: "white" }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded-full bg-white/20"></div>
+                        <div>
+                          <h3 className="font-medium">Chat Support</h3>
+                          <p className="text-xs opacity-80">Online</p>
+                        </div>
+                      </div>
+                      <button className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
+                        <span className="sr-only">Close</span>
+                        <svg
+                          width="15"
+                          height="15"
+                          viewBox="0 0 15 15"
+                          fill="none"
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-4 w-4"
+                        >
+                          <path
+                            d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z"
+                            fill="currentColor"
+                            fillRule="evenodd"
+                            clipRule="evenodd"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
+                    <div
+                      className="p-4 h-[240px] overflow-y-auto"
+                      style={{ backgroundColor: "#e2e8f0" }}
+                    >
+                      <div className="flex justify-start mb-4">
+                        <div className="max-w-[80%] rounded-lg p-3 bg-white">
+                          <p>Hello! How can I help you today?</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-end mb-4">
+                        <div
+                          className="max-w-[80%] rounded-lg p-3 text-white"
+                          style={{ backgroundColor: "#1e40af" }}
+                        >
+                          <p>I have a question about your services.</p>
+                        </div>
+                      </div>
+                      <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-lg p-3 bg-white">
+                          <p>
+                            I'd be happy to help with that! What would you like
+                            to know about our services?
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="p-4 border-t flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Type your message..."
+                        className="flex-1 p-2 rounded border"
+                      />
+                      <button
+                        className="px-4 py-2 text-white rounded"
+                        style={{ backgroundColor: "#1e40af" }}
+                      >
+                        Send
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -575,63 +392,32 @@ const WidgetBuilder = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Device Preview</CardTitle>
+              <CardTitle>Embed Code</CardTitle>
               <CardDescription>
-                See how your widget looks on different devices
+                Add this code to your website to display the chat widget
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="flex justify-center gap-4">
-                <Button
-                  variant="outline"
-                  className="flex flex-col h-auto py-4 flex-1"
-                >
-                  <Monitor className="h-6 w-6 mb-2" />
-                  <span>Desktop</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex flex-col h-auto py-4 flex-1"
-                >
-                  <Smartphone className="h-6 w-6 mb-2" />
-                  <span>Mobile</span>
-                </Button>
+            <CardContent className="space-y-4">
+              <div className="bg-muted p-4 rounded-md">
+                <code className="text-xs">
+                  &lt;script src="https://chat-widget.example.com/widget.js"
+                  data-widget-id="my-chat-widget"&gt;&lt;/script&gt;
+                </code>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Template Gallery</CardTitle>
-              <CardDescription>
-                Choose from pre-designed templates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col justify-center"
-                >
-                  <span className="text-sm font-medium">Modern Clean</span>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={handleCopyCode}>
+                  {copied ? (
+                    <>
+                      <Check className="mr-2 h-4 w-4" /> Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="mr-2 h-4 w-4" /> Copy Code
+                    </>
+                  )}
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col justify-center"
-                >
-                  <span className="text-sm font-medium">Dark Mode</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col justify-center"
-                >
-                  <span className="text-sm font-medium">Soft Rounded</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-20 flex flex-col justify-center"
-                >
-                  <span className="text-sm font-medium">Minimalist</span>
+                <Button variant="outline">
+                  <Eye className="mr-2 h-4 w-4" /> Preview
                 </Button>
               </div>
             </CardContent>
