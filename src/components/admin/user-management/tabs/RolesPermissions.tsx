@@ -48,18 +48,27 @@ const RolesPermissions = () => {
   const { hasPermission } = useAuth();
 
   // Check if user has permission to manage roles
-  const canCreateRoles = hasPermission("manage_roles");
-  const canEditRoles = hasPermission("manage_roles");
-  const canDeleteRoles = hasPermission("manage_roles");
+  const canCreateRoles = hasPermission("create_roles");
+  const canEditRoles = hasPermission("edit_roles");
+  const canDeleteRoles = hasPermission("delete_roles");
+  const canManagePermissions = hasPermission("manage_permissions");
+
+  // Fallback to general manage_roles permission if specific permissions aren't defined
+  const hasManageRolesPermission = hasPermission("manage_roles");
+  const effectiveCanCreateRoles = canCreateRoles || hasManageRolesPermission;
+  const effectiveCanEditRoles = canEditRoles || hasManageRolesPermission;
+  const effectiveCanDeleteRoles = canDeleteRoles || hasManageRolesPermission;
+  const effectiveCanManagePermissions =
+    canManagePermissions || hasManageRolesPermission;
 
   const handleEditRole = (role: Role) => {
-    if (!canEditRoles) return;
+    if (!effectiveCanEditRoles) return;
     setSelectedRole(role);
     setShowEditRoleDialog(true);
   };
 
   const handleDeleteRole = (role: Role) => {
-    if (!canDeleteRoles) return;
+    if (!effectiveCanDeleteRoles) return;
     setSelectedRole(role);
     setShowDeleteRoleDialog(true);
   };
@@ -90,7 +99,7 @@ const RolesPermissions = () => {
                 Manage user roles and their descriptions
               </CardDescription>
             </div>
-            {canCreateRoles && (
+            {effectiveCanCreateRoles && (
               <Button onClick={() => setShowCreateRoleDialog(true)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Create New Role
@@ -121,8 +130,8 @@ const RolesPermissions = () => {
                   role={role}
                   onEdit={handleEditRole}
                   onDelete={handleDeleteRole}
-                  canEdit={canEditRoles}
-                  canDelete={canDeleteRoles}
+                  canEdit={effectiveCanEditRoles}
+                  canDelete={effectiveCanDeleteRoles}
                 />
               ))}
             </div>
@@ -215,6 +224,24 @@ const RolesPermissions = () => {
                           module: "Access Control",
                         },
                         {
+                          id: "create_roles",
+                          name: "Create Roles",
+                          description: "Can create new roles",
+                          module: "Access Control",
+                        },
+                        {
+                          id: "edit_roles",
+                          name: "Edit Roles",
+                          description: "Can edit existing roles",
+                          module: "Access Control",
+                        },
+                        {
+                          id: "delete_roles",
+                          name: "Delete Roles",
+                          description: "Can delete roles",
+                          module: "Access Control",
+                        },
+                        {
                           id: "view_roles",
                           name: "View Roles",
                           description: "Can view role list",
@@ -264,6 +291,7 @@ const RolesPermissions = () => {
                         },
                       ]
                     }
+                    canEdit={effectiveCanManagePermissions}
                   />
                 </TabsContent>
               ))}
@@ -275,8 +303,12 @@ const RolesPermissions = () => {
           )}
         </CardContent>
         <CardFooter className="border-t pt-4 flex justify-end gap-2">
-          <Button variant="outline">Reset to Default</Button>
-          <Button>Save Changes</Button>
+          {effectiveCanManagePermissions && (
+            <>
+              <Button variant="outline">Reset to Default</Button>
+              <Button>Save Changes</Button>
+            </>
+          )}
         </CardFooter>
       </Card>
 
@@ -286,6 +318,7 @@ const RolesPermissions = () => {
         onOpenChange={setShowCreateRoleDialog}
         onSuccess={handleCreateRoleSuccess}
         availablePermissions={permissions || []}
+        canCreate={effectiveCanCreateRoles}
       />
 
       {/* Edit Role Dialog */}
@@ -296,6 +329,7 @@ const RolesPermissions = () => {
           role={selectedRole}
           onSuccess={handleEditRoleSuccess}
           availablePermissions={permissions || []}
+          canEdit={effectiveCanEditRoles}
         />
       )}
 
@@ -306,6 +340,7 @@ const RolesPermissions = () => {
           onOpenChange={setShowDeleteRoleDialog}
           role={selectedRole}
           onSuccess={handleDeleteRoleSuccess}
+          canDelete={effectiveCanDeleteRoles}
         />
       )}
     </>

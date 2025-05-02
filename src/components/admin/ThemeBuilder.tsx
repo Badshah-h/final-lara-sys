@@ -35,7 +35,7 @@ import {
   Eye,
   Laptop,
   Smartphone,
-  Monitor,
+  MonitorIcon,
 } from "lucide-react";
 
 const ThemeBuilder = () => {
@@ -77,7 +77,7 @@ const ThemeBuilder = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 static">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Theme Builder</h1>
@@ -89,7 +89,6 @@ const ThemeBuilder = () => {
           <Save className="mr-2 h-4 w-4" /> Save Theme
         </Button>
       </div>
-
       <div className="grid gap-6 lg:grid-cols-5">
         <div className="lg:col-span-3 space-y-6">
           <Tabs defaultValue="colors">
@@ -472,7 +471,7 @@ const ThemeBuilder = () => {
                     className="flex items-center gap-1"
                     onClick={() => setActivePreview("desktop")}
                   >
-                    <Monitor className="h-4 w-4" />
+                    <MonitorIcon className="h-4 w-4" />
                     Desktop
                   </Button>
                   <Button
