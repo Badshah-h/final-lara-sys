@@ -16,9 +16,17 @@ interface RoleCardProps {
   role: Role;
   onEdit: (role: Role) => void;
   onDelete: (role: Role) => void;
+  canEdit?: boolean;
+  canDelete?: boolean;
 }
 
-const RoleCard = ({ role, onEdit, onDelete }: RoleCardProps) => {
+const RoleCard = ({
+  role,
+  onEdit,
+  onDelete,
+  canEdit = true,
+  canDelete = true,
+}: RoleCardProps) => {
   // Define the permission categories to display
   const permissionCategories = [
     "User Management",
@@ -117,21 +125,31 @@ const RoleCard = ({ role, onEdit, onDelete }: RoleCardProps) => {
         </div>
       </CardContent>
       <CardFooter className="border-t pt-4 flex gap-2">
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={() => onEdit(role)}
-        >
-          <Edit className="mr-2 h-4 w-4" />
-          Edit Role
-        </Button>
-        <Button
-          variant="outline"
-          className="flex-none"
-          onClick={() => onDelete(role)}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        {canEdit && (
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onEdit(role)}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Role
+          </Button>
+        )}
+        {canDelete && (
+          <Button
+            variant="outline"
+            className={canEdit ? "flex-none" : "flex-1"}
+            onClick={() => onDelete(role)}
+          >
+            <Trash2 className="h-4 w-4" />
+            {!canEdit && <span className="ml-2">Delete Role</span>}
+          </Button>
+        )}
+        {!canEdit && !canDelete && (
+          <div className="text-sm text-muted-foreground py-2">
+            You don't have permission to modify this role
+          </div>
+        )}
       </CardFooter>
     </Card>
   );

@@ -20,6 +20,7 @@ import { DeleteRoleDialog } from "../dialogs/DeleteRoleDialog";
 import { Role } from "@/types";
 import { useRoles } from "@/hooks/access-control/useRoles";
 import { usePermissions } from "@/hooks/access-control/usePermissions";
+import { useAuth } from "@/contexts/AuthContext";
 
 const RolesPermissions = () => {
   const [showCreateRoleDialog, setShowCreateRoleDialog] = useState(false);
@@ -43,12 +44,22 @@ const RolesPermissions = () => {
     error: permissionsError,
   } = usePermissions();
 
+  // Get auth context for permission checks
+  const { hasPermission } = useAuth();
+
+  // Check if user has permission to manage roles
+  const canCreateRoles = hasPermission("manage_roles");
+  const canEditRoles = hasPermission("manage_roles");
+  const canDeleteRoles = hasPermission("manage_roles");
+
   const handleEditRole = (role: Role) => {
+    if (!canEditRoles) return;
     setSelectedRole(role);
     setShowEditRoleDialog(true);
   };
 
   const handleDeleteRole = (role: Role) => {
+    if (!canDeleteRoles) return;
     setSelectedRole(role);
     setShowDeleteRoleDialog(true);
   };
@@ -79,10 +90,12 @@ const RolesPermissions = () => {
                 Manage user roles and their descriptions
               </CardDescription>
             </div>
-            <Button onClick={() => setShowCreateRoleDialog(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Role
-            </Button>
+            {canCreateRoles && (
+              <Button onClick={() => setShowCreateRoleDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create New Role
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -108,6 +121,8 @@ const RolesPermissions = () => {
                   role={role}
                   onEdit={handleEditRole}
                   onDelete={handleDeleteRole}
+                  canEdit={canEditRoles}
+                  canDelete={canDeleteRoles}
                 />
               ))}
             </div>
