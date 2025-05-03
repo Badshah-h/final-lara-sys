@@ -39,7 +39,7 @@ const RolesPermissions = () => {
 
   // Get permissions data from API
   const {
-    permissions,
+    permissionCategories,
     isLoading: isLoadingPermissions,
     error: permissionsError,
   } = usePermissions();
@@ -197,100 +197,7 @@ const RolesPermissions = () => {
                 <TabsContent key={role.id} value={role.id}>
                   <PermissionManagement
                     role={role}
-                    availablePermissions={
-                      permissions || [
-                        {
-                          id: "view_dashboard",
-                          name: "View Dashboard",
-                          description: "Can view dashboard",
-                          module: "Dashboard",
-                        },
-                        {
-                          id: "manage_users",
-                          name: "Manage Users",
-                          description: "Can create, edit and delete users",
-                          module: "Users",
-                        },
-                        {
-                          id: "view_users",
-                          name: "View Users",
-                          description: "Can view user list",
-                          module: "Users",
-                        },
-                        {
-                          id: "manage_roles",
-                          name: "Manage Roles",
-                          description: "Can create, edit and delete roles",
-                          module: "Access Control",
-                        },
-                        {
-                          id: "create_roles",
-                          name: "Create Roles",
-                          description: "Can create new roles",
-                          module: "Access Control",
-                        },
-                        {
-                          id: "edit_roles",
-                          name: "Edit Roles",
-                          description: "Can edit existing roles",
-                          module: "Access Control",
-                        },
-                        {
-                          id: "delete_roles",
-                          name: "Delete Roles",
-                          description: "Can delete roles",
-                          module: "Access Control",
-                        },
-                        {
-                          id: "view_roles",
-                          name: "View Roles",
-                          description: "Can view role list",
-                          module: "Access Control",
-                        },
-                        {
-                          id: "manage_permissions",
-                          name: "Manage Permissions",
-                          description: "Can assign permissions to roles",
-                          module: "Access Control",
-                        },
-                        {
-                          id: "view_activity_log",
-                          name: "View Activity Log",
-                          description: "Can view activity logs",
-                          module: "System",
-                        },
-                        {
-                          id: "manage_settings",
-                          name: "Manage Settings",
-                          description: "Can change system settings",
-                          module: "System",
-                        },
-                        {
-                          id: "manage_ai_models",
-                          name: "Manage AI Models",
-                          description: "Can configure AI models",
-                          module: "AI Configuration",
-                        },
-                        {
-                          id: "manage_knowledge_base",
-                          name: "Manage Knowledge Base",
-                          description: "Can manage knowledge base content",
-                          module: "AI Configuration",
-                        },
-                        {
-                          id: "manage_prompts",
-                          name: "Manage Prompts",
-                          description: "Can create and edit prompt templates",
-                          module: "AI Configuration",
-                        },
-                        {
-                          id: "manage_response_formatting",
-                          name: "Manage Response Formatting",
-                          description: "Can configure response formatting",
-                          module: "AI Configuration",
-                        },
-                      ]
-                    }
+                    availablePermissions={permissionCategories}
                     canEdit={effectiveCanManagePermissions}
                   />
                 </TabsContent>
@@ -317,7 +224,7 @@ const RolesPermissions = () => {
         open={showCreateRoleDialog}
         onOpenChange={setShowCreateRoleDialog}
         onSuccess={handleCreateRoleSuccess}
-        availablePermissions={permissions || []}
+        availablePermissions={permissionCategories || []}
         canCreate={effectiveCanCreateRoles}
       />
 
@@ -328,7 +235,7 @@ const RolesPermissions = () => {
           onOpenChange={setShowEditRoleDialog}
           role={selectedRole}
           onSuccess={handleEditRoleSuccess}
-          availablePermissions={permissions || []}
+          availablePermissions={permissionCategories || []}
           canEdit={effectiveCanEditRoles}
         />
       )}

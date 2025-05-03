@@ -24,17 +24,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { Role } from "@/types";
 
 interface RoleCardProps {
-  role: {
-    id: string;
-    name: string;
-    description?: string;
-    permissions?: any[];
-    userCount?: number;
-  };
-  onEdit?: (role: any) => void;
-  onDelete?: (role: any) => void;
+  role: Role;
+  onEdit?: (role: Role) => void;
+  onDelete?: (role: Role) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }

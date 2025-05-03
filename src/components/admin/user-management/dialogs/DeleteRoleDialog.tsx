@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,23 +18,51 @@ interface DeleteRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   role: Role;
+  onSuccess?: () => void;
+  canDelete?: boolean;
 }
 
 export function DeleteRoleDialog({
   open,
   onOpenChange,
   role,
+  onSuccess,
+  canDelete = true,
 }: DeleteRoleDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleDeleteRole = () => {
+  const handleDeleteRole = async () => {
+    if (!canDelete) return;
+
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      // In a real implementation, this would delete the role from the database
+    try {
+      // Make actual API call to delete the role
+      await fetch(`/api/roles/${role.id}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-TOKEN":
+            document
+              .querySelector('meta[name="csrf-token"]')
+              ?.getAttribute("content") || "",
+        },
+        credentials: "include",
+      });
+
+      if (onSuccess) {
+        onSuccess();
+      }
       onOpenChange(false);
+    } catch (error) {
+      console.error("Error deleting role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete role. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -59,7 +88,7 @@ export function DeleteRoleDialog({
           <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleDeleteRole}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canDelete}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {isSubmitting ? (

@@ -21,6 +21,8 @@ interface EditRoleDialogProps {
   onOpenChange: (open: boolean) => void;
   role: Role;
   availablePermissions: PermissionCategory[];
+  onSuccess?: () => void;
+  canEdit?: boolean;
 }
 
 export function EditRoleDialog({
@@ -28,6 +30,8 @@ export function EditRoleDialog({
   onOpenChange,
   role,
   availablePermissions,
+  onSuccess,
+  canEdit = true,
 }: EditRoleDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editedRole, setEditedRole] = useState<EditedRole>({
@@ -38,10 +42,15 @@ export function EditRoleDialog({
   });
 
   const handleEditRole = () => {
+    if (!canEdit) return;
+
     setIsSubmitting(true);
     // Simulate API call
     setTimeout(() => {
       // In a real implementation, this would update the role in the database
+      if (onSuccess) {
+        onSuccess();
+      }
       onOpenChange(false);
       setIsSubmitting(false);
     }, 1000);
@@ -67,6 +76,7 @@ export function EditRoleDialog({
                 onChange={(e) =>
                   setEditedRole({ ...editedRole, name: e.target.value })
                 }
+                disabled={!canEdit}
               />
             </div>
             <div className="space-y-2">
@@ -82,6 +92,7 @@ export function EditRoleDialog({
                   })
                 }
                 className="resize-none"
+                disabled={!canEdit}
               />
             </div>
             <div className="space-y-2 flex-1 overflow-hidden">
@@ -97,6 +108,7 @@ export function EditRoleDialog({
                         setStateFunction={setEditedRole}
                         currentState={editedRole}
                         idPrefix={`edit-${role.id}`}
+                        disabled={!canEdit}
                       />
                     ))}
                   </div>
@@ -115,7 +127,7 @@ export function EditRoleDialog({
           </Button>
           <Button
             onClick={handleEditRole}
-            disabled={isSubmitting || !editedRole.name.trim()}
+            disabled={isSubmitting || !editedRole.name.trim() || !canEdit}
           >
             {isSubmitting ? (
               <>
