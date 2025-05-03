@@ -105,3 +105,5 @@ export function DeleteRoleDialog({
     </AlertDialog>
   );
 }
+
+export default DeleteRoleDialog;

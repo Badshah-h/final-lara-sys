@@ -1,6 +1,6 @@
 /**
  * Core Domain Types
- * 
+ *
  * Contains the main entity types used across the application.
  * API-specific types (requests/responses) are in @/services/api/types
  */
@@ -20,6 +20,8 @@ export interface User {
 export interface Permission {
   id: string;
   name: string;
+  description?: string;
+  module?: string;
 }
 
 export interface PermissionCategory {

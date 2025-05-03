@@ -5,13 +5,12 @@ import { useState, useEffect, useCallback } from "react";
 import { permissionService } from "@/services/access-control";
 import { useApi } from "@/hooks/useApi";
 import { PermissionCategory } from "@/types";
-import { 
-  ApiResponse, 
-  PermissionUpdateRequest 
-} from "@/services/api/types";
+import { ApiResponse, PermissionUpdateRequest } from "@/services/api/types";
 
 export function usePermissions() {
-  const [permissionCategories, setPermissionCategories] = useState<PermissionCategory[]>([]);
+  const [permissionCategories, setPermissionCategories] = useState<
+    PermissionCategory[]
+  >([]);
 
   // API hooks
   const {
@@ -19,7 +18,7 @@ export function usePermissions() {
     error: permissionsError,
     execute: fetchPermissions,
   } = useApi<ApiResponse<PermissionCategory[]>, []>(
-    permissionService.getPermissions.bind(permissionService)
+    permissionService.getPermissions.bind(permissionService),
   );
 
   const {
@@ -27,17 +26,18 @@ export function usePermissions() {
     error: rolePermissionsError,
     execute: fetchRolePermissions,
   } = useApi<ApiResponse<string[]>, [string]>(
-    permissionService.getRolePermissions.bind(permissionService)
+    permissionService.getRolePermissions.bind(permissionService),
   );
 
-  const { 
-    isLoading: isUpdatingPermissions, 
-    execute: updateRolePermissions 
-  } = useApi<ApiResponse<string[]>, [string, PermissionUpdateRequest]>(
-    async (roleId: string, data: PermissionUpdateRequest) => {
-      return permissionService.updateRolePermissions(roleId, data.permissions);
-    }
-  );
+  const { isLoading: isUpdatingPermissions, execute: updateRolePermissions } =
+    useApi<ApiResponse<string[]>, [string, PermissionUpdateRequest]>(
+      async (roleId: string, data: PermissionUpdateRequest) => {
+        return permissionService.updateRolePermissions(
+          roleId,
+          data.permissions,
+        );
+      },
+    );
 
   // Fetch all available permissions
   const fetchPermissionData = useCallback(async () => {
