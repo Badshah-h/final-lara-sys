@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator";
 import { Role, Permission } from "@/types";
 import { Loader2 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
+import { roleService } from "@/services/access-control";
 
 interface PermissionManagementFixedProps {
   role: Role;
@@ -72,13 +73,19 @@ const PermissionManagementFixed = ({
 
     setIsSaving(true);
     try {
-      // In a real implementation, this would call an API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Make an API call to update the role's permissions
+      const updateData = {
+        permissions: selectedPermissions,
+      };
+
+      await roleService.updateRole(role.id, updateData);
+
       toast({
         title: "Permissions saved",
         description: `Updated permissions for role: ${role.name}`,
       });
     } catch (error) {
+      console.error("Error saving permissions:", error);
       toast({
         title: "Error saving permissions",
         description: "There was a problem saving the permissions.",
