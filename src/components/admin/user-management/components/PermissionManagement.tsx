@@ -6,16 +6,20 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Role, Permission } from "@/types";
 import { Loader2 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { roleService } from "@/services/access-control";
 
-interface PermissionManagementProps {
+interface PermissionManagementFixedProps {
   role: Role;
   availablePermissions: Permission[];
+  canEdit?: boolean;
 }
 
-const PermissionManagement = ({
+const PermissionManagementFixed = ({
   role,
   availablePermissions,
-}: PermissionManagementProps) => {
+  canEdit = true,
+}: PermissionManagementFixedProps) => {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -42,7 +46,10 @@ const PermissionManagement = ({
   // Initialize selected permissions based on role
   useEffect(() => {
     if (role && role.permissions) {
-      const permissionIds = role.permissions.map((p) => p.id);
+      // Handle both array of strings and array of objects with id property
+      const permissionIds = role.permissions.map((p) =>
+        typeof p === "string" ? p : p.id,
+      );
       setSelectedPermissions(permissionIds);
     } else {
       setSelectedPermissions([]);
@@ -50,6 +57,8 @@ const PermissionManagement = ({
   }, [role]);
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
+    if (!canEdit) return;
+
     if (checked) {
       setSelectedPermissions([...selectedPermissions, permissionId]);
     } else {
@@ -60,14 +69,36 @@ const PermissionManagement = ({
   };
 
   const handleSavePermissions = async () => {
+    if (!canEdit) return;
+
     setIsSaving(true);
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Make an API call to update the role's permissions
+      const updateData = {
+        permissions: selectedPermissions,
+      };
+
+      await roleService.updateRole(role.id, updateData);
+
+      toast({
+        title: "Permissions saved",
+        description: `Updated permissions for role: ${role.name}`,
+      });
+    } catch (error) {
+      console.error("Error saving permissions:", error);
+      toast({
+        title: "Error saving permissions",
+        description: "There was a problem saving the permissions.",
+        variant: "destructive",
+      });
+    } finally {
       setIsSaving(false);
-    }, 1000);
+    }
   };
 
   const handleSelectAllInModule = (module: string, checked: boolean) => {
+    if (!canEdit) return;
+
     const modulePermissionIds = permissionsByModule[module].map((p) => p.id);
 
     if (checked) {
@@ -104,16 +135,18 @@ const PermissionManagement = ({
             Configure permissions for this role
           </p>
         </div>
-        <Button onClick={handleSavePermissions} disabled={isSaving}>
-          {isSaving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Save Permissions"
-          )}
-        </Button>
+        {canEdit && (
+          <Button onClick={handleSavePermissions} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save Permissions"
+            )}
+          </Button>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -122,20 +155,22 @@ const PermissionManagement = ({
             <Card key={module} className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">{module}</h3>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`select-all-${module}`}
-                    checked={
-                      permissions.every((p) =>
-                        selectedPermissions.includes(p.id),
-                      ) && permissions.length > 0
-                    }
-                    onCheckedChange={(checked) =>
-                      handleSelectAllInModule(module, checked === true)
-                    }
-                  />
-                  <Label htmlFor={`select-all-${module}`}>Select All</Label>
-                </div>
+                {canEdit && (
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`select-all-${module}`}
+                      checked={
+                        permissions.every((p) =>
+                          selectedPermissions.includes(p.id),
+                        ) && permissions.length > 0
+                      }
+                      onCheckedChange={(checked) =>
+                        handleSelectAllInModule(module, checked === true)
+                      }
+                    />
+                    <Label htmlFor={`select-all-${module}`}>Select All</Label>
+                  </div>
+                )}
               </div>
               <Separator className="mb-4" />
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -150,6 +185,7 @@ const PermissionManagement = ({
                       onCheckedChange={(checked) =>
                         handlePermissionChange(permission.id, checked === true)
                       }
+                      disabled={!canEdit}
                     />
                     <Label
                       htmlFor={`permission-${permission.id}`}
@@ -175,4 +211,4 @@ const PermissionManagement = ({
   );
 };
 
-export default PermissionManagement;
+export default PermissionManagementFixed;

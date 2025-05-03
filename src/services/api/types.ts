@@ -1,6 +1,6 @@
 /**
  * API Types
- * 
+ *
  * Contains types specific to API requests/responses and data transfer.
  * Core domain types are in @/types
  */
@@ -39,6 +39,7 @@ export interface UserCreateRequest {
   name: string;
   email: string;
   role: string;
+  password: string;
   send_email?: boolean;
 }
 
@@ -47,6 +48,12 @@ export interface UserUpdateRequest {
   email?: string;
   role?: string;
   status?: string;
+}
+
+export interface UserPasswordUpdateRequest {
+  password: string;
+  password_confirmation: string;
+  current_password?: string;
 }
 
 export interface RoleCreateRequest {

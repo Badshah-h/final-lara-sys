@@ -1,10 +1,10 @@
 /**
  * Custom hook for user management operations
  */
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { userService } from "@/services/user-management";
 import { User } from "@/types";
-import { UserQueryParams, PaginatedResponse } from "@/services/api/types";
+import { UserQueryParams } from "@/services/api/types";
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
@@ -17,6 +17,9 @@ export function useUsers() {
     per_page: 10,
   });
 
+  // Reference to the fetchUsers function to avoid circular dependencies
+  const fetchUsersRef = useRef<(params?: UserQueryParams) => Promise<any>>();
+
   // Fetch users with current query parameters
   const fetchUsers = useCallback(
     async (params?: UserQueryParams) => {
@@ -25,78 +28,22 @@ export function useUsers() {
 
       try {
         const finalParams = params || queryParams;
-        console.log("Fetching users with params:", finalParams);
-
-        // Try to fetch from API
-        let response;
-        try {
-          response = await userService.getUsers(finalParams);
-          console.log("Users response:", response);
-        } catch (apiError) {
-          console.error("API error, using mock data:", apiError);
-          // Use mock data if API fails
-          response = {
-            data: [
-              {
-                id: "1",
-                name: "John Doe",
-                email: "john@example.com",
-                role: "Admin",
-                status: "active",
-                created_at: "2023-01-15",
-              },
-              {
-                id: "2",
-                name: "Jane Smith",
-                email: "jane@example.com",
-                role: "Editor",
-                status: "active",
-                created_at: "2023-02-20",
-              },
-              {
-                id: "3",
-                name: "Bob Johnson",
-                email: "bob@example.com",
-                role: "User",
-                status: "inactive",
-                created_at: "2023-03-10",
-              },
-              {
-                id: "4",
-                name: "Alice Williams",
-                email: "alice@example.com",
-                role: "Manager",
-                status: "active",
-                created_at: "2023-04-05",
-              },
-              {
-                id: "5",
-                name: "Charlie Brown",
-                email: "charlie@example.com",
-                role: "User",
-                status: "pending",
-                created_at: "2023-05-12",
-              },
-            ],
-            meta: {
-              total: 5,
-              current_page: 1,
-              per_page: 10,
-              last_page: 1,
-            },
-          };
-        }
+        const response = await userService.getUsers(finalParams);
 
         if (response && response.data) {
-          setUsers(response.data);
-          setTotalUsers(response.meta?.total || response.data.length);
+          // Process user data to ensure consistent format
+          const processedUsers = response.data.map(user => ({
+            ...user,
+            // Ensure last_active is properly handled
+            last_active: user.last_active || null,
+            // Ensure avatar is properly handled
+            avatar: user.avatar || null,
+          }));
+
+          setUsers(processedUsers);
+          setTotalUsers(response.meta?.total || processedUsers.length);
           setCurrentPage(response.meta?.current_page || 1);
-        } else if (Array.isArray(response)) {
-          // Handle case where response is directly an array
-          setUsers(response);
-          setTotalUsers(response.length);
         } else {
-          // Handle empty or invalid response
           setUsers([]);
           setTotalUsers(0);
         }
@@ -105,52 +52,9 @@ export function useUsers() {
       } catch (err) {
         console.error("Error fetching users:", err);
         setError(err instanceof Error ? err : new Error(String(err)));
-
-        // Use mock data as fallback
-        const mockUsers = [
-          {
-            id: "1",
-            name: "John Doe",
-            email: "john@example.com",
-            role: "Admin",
-            status: "active",
-            created_at: "2023-01-15",
-          },
-          {
-            id: "2",
-            name: "Jane Smith",
-            email: "jane@example.com",
-            role: "Editor",
-            status: "active",
-            created_at: "2023-02-20",
-          },
-          {
-            id: "3",
-            name: "Bob Johnson",
-            email: "bob@example.com",
-            role: "User",
-            status: "inactive",
-            created_at: "2023-03-10",
-          },
-          {
-            id: "4",
-            name: "Alice Williams",
-            email: "alice@example.com",
-            role: "Manager",
-            status: "active",
-            created_at: "2023-04-05",
-          },
-          {
-            id: "5",
-            name: "Charlie Brown",
-            email: "charlie@example.com",
-            role: "User",
-            status: "pending",
-            created_at: "2023-05-12",
-          },
-        ];
-        setUsers(mockUsers);
-        setTotalUsers(mockUsers.length);
+        setUsers([]);
+        setTotalUsers(0);
+        return null;
       } finally {
         setIsLoading(false);
       }
@@ -158,12 +62,22 @@ export function useUsers() {
     [queryParams],
   );
 
-  // Initial data fetch
+  // Store the fetchUsers function in the ref to avoid circular dependencies
   useEffect(() => {
-    fetchUsers();
+    fetchUsersRef.current = fetchUsers;
   }, [fetchUsers]);
 
-  // Update query parameters
+  // Initial data fetch - only when the component mounts
+  useEffect(() => {
+    // Using a ref to ensure we only fetch once on mount
+    const controller = new AbortController();
+    fetchUsers();
+    return () => {
+      controller.abort();
+    };
+  }, [fetchUsers]);
+
+  // Update query parameters and fetch users
   const updateQueryParams = useCallback(
     (newParams: Partial<UserQueryParams>) => {
       setQueryParams((prev) => {
@@ -172,11 +86,20 @@ export function useUsers() {
           newParams.role !== undefined ||
           newParams.status !== undefined;
 
-        return {
+        const updatedParams = {
           ...prev,
           ...newParams,
           page: shouldResetPage ? 1 : newParams.page || prev.page,
         };
+
+        // Fetch users with the updated params
+        setTimeout(() => {
+          if (fetchUsersRef.current) {
+            fetchUsersRef.current(updatedParams);
+          }
+        }, 0);
+
+        return updatedParams;
       });
     },
     [],

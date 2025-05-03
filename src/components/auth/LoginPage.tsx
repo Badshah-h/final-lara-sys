@@ -12,6 +12,8 @@ import {
   Mail,
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useForm } from "react-hook-form";
@@ -36,6 +38,7 @@ const LoginPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Get the redirect path from location state or default to dashboard
   const from = (location.state as any)?.from?.pathname || "/dashboard";
@@ -143,14 +146,24 @@ const LoginPage = () => {
                 Forgot password?
               </Link>
             </div>
-            <Input
-              id="password"
-              type="password"
-              placeholder="••••••••"
-              className={`h-12 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
-              {...register("password")}
-              aria-invalid={errors.password ? "true" : "false"}
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="••••••••"
+                className={`h-12 ${errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                {...register("password")}
+                aria-invalid={errors.password ? "true" : "false"}
+              />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                onClick={() => setShowPassword((v) => !v)}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Checkbox id="remember" {...register("remember")} />

@@ -4,14 +4,12 @@ import {
   MoreHorizontal,
   Edit,
   Key,
-  Mail,
   Trash2,
-  Users,
   Loader2,
   AlertCircle,
   RefreshCw,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,7 +23,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -44,16 +41,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import { getRoleBadgeVariant } from "@/utils/helpers";
+
 import StatusIcon from "@/components/admin/user-management/components/StatusIcon";
+import UserRoleDisplay from "@/components/admin/user-management/components/UserRoleDisplay";
 import { EditUserDialog } from "@/components/admin/user-management/dialogs/EditUserDialog";
 import { DeleteUserDialog } from "@/components/admin/user-management/dialogs/DeleteUserDialog";
+import { ResetPasswordDialog } from "@/components/admin/user-management/dialogs/ResetPasswordDialog";
 import { User } from "@/types";
 import { useUsers } from "@/hooks/user-management/useUsers";
 import { useRoles } from "@/hooks/access-control/useRoles";
-import { SEARCH_DEBOUNCE_TIME, USER_STATUSES_ARRAY } from "@/constants";
+import { SEARCH_DEBOUNCE_TIME } from "@/constants";
 
 // UsersList component with proper role and status filtering
 const UsersList = () => {
@@ -62,6 +60,7 @@ const UsersList = () => {
   const [selectedStatus, setSelectedStatus] = useState("all"); // Default status filter
   const [showEditUserDialog, setShowEditUserDialog] = useState(false);
   const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
+  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
     null,
@@ -79,7 +78,7 @@ const UsersList = () => {
   } = useUsers();
 
   // Get roles data
-  const { roles, isLoading: isLoadingRoles } = useRoles();
+  const { roles } = useRoles();
 
   // Handle search query changes with debounce
   useEffect(() => {
@@ -99,20 +98,23 @@ const UsersList = () => {
   }, [searchQuery, updateQueryParams]);
 
   // Handle role filter changes
-  useEffect(() => {
+  const handleRoleChange = (value: string) => {
+    setSelectedRole(value);
     updateQueryParams({
-      role: selectedRole !== "all" ? selectedRole : undefined,
+      role: value !== "all" ? value : undefined,
     });
-  }, [selectedRole, updateQueryParams]);
+  };
 
   // Handle status filter changes
-  useEffect(() => {
+  const handleStatusChange = (value: string) => {
+    setSelectedStatus(value);
     updateQueryParams({
-      status: selectedStatus !== "all" ? selectedStatus : undefined,
+      status: value !== "all" ? value : undefined,
     });
-  }, [selectedStatus, updateQueryParams]);
+  };
 
   const openEditUserDialog = (user: User) => {
+    console.log("Opening edit dialog for user:", user);
     setSelectedUser(user);
     setShowEditUserDialog(true);
   };
@@ -120,6 +122,11 @@ const UsersList = () => {
   const openDeleteUserDialog = (user: User) => {
     setSelectedUser(user);
     setShowDeleteUserDialog(true);
+  };
+
+  const openResetPasswordDialog = (user: User) => {
+    setSelectedUser(user);
+    setShowResetPasswordDialog(true);
   };
 
   // Handle manual refresh
@@ -142,7 +149,7 @@ const UsersList = () => {
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
-              <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <Select value={selectedRole} onValueChange={handleRoleChange}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
@@ -156,16 +163,37 @@ const UsersList = () => {
                     ))}
                 </SelectContent>
               </Select>
-              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <Select value={selectedStatus} onValueChange={handleStatusChange}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status" />
+                  <SelectValue placeholder="Filter by status">
+                    {selectedStatus !== "all" && (
+                      <div className="flex items-center gap-2">
+                        <StatusIcon status={selectedStatus} />
+                        {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
+                      </div>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {USER_STATUSES_ARRAY.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">
+                    <div className="flex items-center gap-2">
+                      <StatusIcon status="active" />
+                      Active
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="inactive">
+                    <div className="flex items-center gap-2">
+                      <StatusIcon status="inactive" />
+                      Inactive
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="pending">
+                    <div className="flex items-center gap-2">
+                      <StatusIcon status="pending" />
+                      Pending
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
               <Button
@@ -242,26 +270,25 @@ const UsersList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)}>
-                        {user.role}
-                      </Badge>
+                      <UserRoleDisplay user={user} allRoles={roles} />
                     </TableCell>
                     <TableCell>
                       <StatusIcon status={user.status} />
                     </TableCell>
                     <TableCell>
-                      {new Date(user.lastActive).toLocaleDateString()}
+                      {user.last_active ? new Date(user.last_active).toLocaleDateString() : 'Never'}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
+                          <span
+                            role="button"
+                            tabIndex={0}
+                            className="h-8 w-8 flex items-center justify-center rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                            aria-label="Open user actions menu"
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                          </span>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
@@ -270,11 +297,8 @@ const UsersList = () => {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Mail className="mr-2 h-4 w-4" />
-                            Send Email
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
+
+                          <DropdownMenuItem onClick={() => openResetPasswordDialog(user)}>
                             <Key className="mr-2 h-4 w-4" />
                             Reset Password
                           </DropdownMenuItem>
@@ -304,7 +328,14 @@ const UsersList = () => {
         <CardFooter>
           <div className="flex items-center justify-between w-full">
             <p className="text-sm text-muted-foreground">
-              Showing {users?.length || 0} of {totalUsers} users
+              {totalUsers > 0 ? (
+                <>
+                  Showing {(currentPage - 1) * 10 + 1}-
+                  {Math.min(currentPage * 10, totalUsers)} of {totalUsers} users
+                </>
+              ) : (
+                "No users found"
+              )}
             </p>
             <div className="flex items-center space-x-2">
               <Button
@@ -317,6 +348,9 @@ const UsersList = () => {
               >
                 Previous
               </Button>
+              <span className="text-sm text-muted-foreground mx-2">
+                Page {currentPage} of {Math.ceil(totalUsers / 10) || 1}
+              </span>
               <Button
                 variant="outline"
                 size="sm"
@@ -345,6 +379,13 @@ const UsersList = () => {
           user={selectedUser}
           open={showDeleteUserDialog}
           onOpenChange={setShowDeleteUserDialog}
+        />
+      )}
+      {showResetPasswordDialog && selectedUser && (
+        <ResetPasswordDialog
+          user={selectedUser}
+          open={showResetPasswordDialog}
+          onOpenChange={setShowResetPasswordDialog}
         />
       )}
     </>

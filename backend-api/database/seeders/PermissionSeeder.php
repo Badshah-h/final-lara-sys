@@ -50,6 +50,9 @@ class PermissionSeeder extends Seeder
             ],
         ];
 
+        // Since this seeder runs before UserSeeder, we'll set created_by to null
+        $adminId = null;
+
         // Create permissions
         foreach ($permissionsByCategory as $category => $permissions) {
             foreach ($permissions as $name => $description) {
@@ -60,7 +63,7 @@ class PermissionSeeder extends Seeder
                         'category' => $category,
                         'description' => $description,
                         'is_active' => true,
-                        'created_by' => 1, // Will be the admin user
+                        'created_by' => $adminId, // Use a real user ID or null
                     ]
                 );
             }

@@ -13,38 +13,6 @@ import {
   PaginatedResponse,
 } from "@/services/api/types";
 
-// Mock data for fallback
-const mockRoles = [
-  {
-    id: "admin",
-    name: "Administrator",
-    description: "Full system access",
-    permissions: [],
-    userCount: 2,
-  },
-  {
-    id: "manager",
-    name: "Manager",
-    description: "Manage content and users",
-    permissions: [],
-    userCount: 3,
-  },
-  {
-    id: "editor",
-    name: "Editor",
-    description: "Edit and publish content",
-    permissions: [],
-    userCount: 5,
-  },
-  {
-    id: "user",
-    name: "User",
-    description: "Basic access",
-    permissions: [],
-    userCount: 12,
-  },
-];
-
 export function useRoles() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [totalRoles, setTotalRoles] = useState(0);
@@ -65,9 +33,8 @@ export function useRoles() {
     {
       onError: (error) => {
         console.error("Error fetching roles:", error);
-        // Use mock data on error
-        setRoles(mockRoles);
-        setTotalRoles(mockRoles.length);
+        setRoles([]);
+        setTotalRoles(0);
         setIsInitialized(true);
       },
     },
@@ -78,12 +45,10 @@ export function useRoles() {
     [RoleCreateRequest]
   >(roleService.createRole.bind(roleService), {
     onSuccess: () => {
-      // Refresh the role list after creating a role
       fetchRoleData();
     },
     onError: (error) => {
       console.error("Error creating role:", error);
-      // Refresh anyway to ensure UI is updated
       fetchRoleData();
     },
   });
@@ -97,12 +62,10 @@ export function useRoles() {
     },
     {
       onSuccess: () => {
-        // Refresh the role list after updating a role
         fetchRoleData();
       },
       onError: (error) => {
         console.error("Error updating role:", error);
-        // Refresh anyway to ensure UI is updated
         fetchRoleData();
       },
     },
@@ -113,12 +76,10 @@ export function useRoles() {
     [string]
   >(roleService.deleteRole.bind(roleService), {
     onSuccess: () => {
-      // Refresh the role list after deleting a role
       fetchRoleData();
     },
     onError: (error) => {
       console.error("Error deleting role:", error);
-      // Refresh anyway to ensure UI is updated
       fetchRoleData();
     },
   });
@@ -126,47 +87,44 @@ export function useRoles() {
   // Fetch roles with current query parameters
   const fetchRoleData = useCallback(async () => {
     try {
-      // For demo purposes, if no API is available, use mock data
       if (typeof fetchRoles !== "function") {
-        console.warn("fetchRoles is not a function, using mock data");
-        setRoles(mockRoles);
-        setTotalRoles(mockRoles.length);
+        setRoles([]);
+        setTotalRoles(0);
         setCurrentPage(1);
         setIsInitialized(true);
         return;
       }
-
       const response = await fetchRoles(queryParams);
       if (response && response.data) {
         setRoles(response.data);
         setTotalRoles(response.meta?.total || 0);
         setCurrentPage(response.meta?.current_page || 1);
       } else if (Array.isArray(response)) {
-        // Handle case where response is directly an array
         setRoles(response);
         setTotalRoles(response.length);
       } else {
-        // Handle case where response exists but data is missing
-        console.warn("Received response without data", response);
-        setRoles(mockRoles);
-        setTotalRoles(mockRoles.length);
+        setRoles([]);
+        setTotalRoles(0);
       }
       setIsInitialized(true);
     } catch (error) {
       console.error("Error fetching roles:", error);
-      // Use mock data as fallback
-      setRoles(mockRoles);
-      setTotalRoles(mockRoles.length);
+      setRoles([]);
+      setTotalRoles(0);
       setIsInitialized(true);
     }
   }, [fetchRoles, queryParams]);
 
-  // Initial data fetch
+  // Initial data fetch - only when the component mounts and is not initialized
   useEffect(() => {
     if (!isInitialized) {
+      const controller = new AbortController();
       fetchRoleData();
+      return () => {
+        controller.abort();
+      };
     }
-  }, [fetchRoleData, isInitialized]);
+  }, [isInitialized]);
 
   // Update query parameters
   const updateQueryParams = useCallback(

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\User\StoreUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Http\Requests\User\UpdateStatusRequest;
+use App\Http\Requests\User\UpdatePasswordRequest;
 use App\Services\UserService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -138,5 +139,18 @@ class UserController extends BaseApiController
     {
         $result = $this->userService->getUserActivityLogs($id, $request->all());
         return $this->paginatedResponse($result['data'], $result['meta']);
+    }
+
+    /**
+     * Update user password.
+     *
+     * @param UpdatePasswordRequest $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function updatePassword(UpdatePasswordRequest $request, int $id): JsonResponse
+    {
+        $user = $this->userService->updateUserPassword($id, $request->validated());
+        return $this->successResponse($user, 'Password updated successfully');
     }
 }

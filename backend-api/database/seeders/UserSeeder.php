@@ -47,45 +47,7 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Get roles
-        $adminRole = Role::where('name', 'admin')->first();
-        $moderatorRole = Role::where('name', 'moderator')->first();
-        $userRole = Role::where('name', 'user')->first();
-
-        // Assign roles to users
-        if ($adminRole) {
-            $adminUser->roles()->sync([$adminRole->id => [
-                'is_active' => true,
-                'created_by' => $adminUser->id,
-                'updated_by' => $adminUser->id,
-            ]]);
-        }
-
-        if ($moderatorRole) {
-            $moderatorUser->roles()->sync([$moderatorRole->id => [
-                'is_active' => true,
-                'created_by' => $adminUser->id,
-                'updated_by' => $adminUser->id,
-            ]]);
-        }
-
-        if ($userRole) {
-            $regularUser->roles()->sync([$userRole->id => [
-                'is_active' => true,
-                'created_by' => $adminUser->id,
-                'updated_by' => $adminUser->id,
-            ]]);
-        }
-
         // Create additional regular users
-        User::factory(5)->create()->each(function ($user) use ($userRole, $adminUser) {
-            if ($userRole) {
-                $user->roles()->sync([$userRole->id => [
-                    'is_active' => true,
-                    'created_by' => $adminUser->id,
-                    'updated_by' => $adminUser->id,
-                ]]);
-            }
-        });
+        User::factory(5)->create();
     }
 }

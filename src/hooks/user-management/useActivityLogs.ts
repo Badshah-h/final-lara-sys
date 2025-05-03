@@ -36,9 +36,7 @@ export function useActivityLogs() {
   // Fetch activity logs with current query parameters
   const fetchActivityData = useCallback(async () => {
     try {
-      console.log("Fetching activity logs with params:", queryParams);
       const response = await fetchLogs(queryParams);
-      console.log("Activity logs response:", response);
       setActivityLogs(response.data);
       setTotalLogs(response.meta?.total || 0);
       setCurrentPage(response.meta?.current_page || 1);
@@ -49,10 +47,14 @@ export function useActivityLogs() {
     }
   }, [fetchLogs, queryParams]);
 
-  // Initial data fetch
+  // Initial data fetch - only when the component mounts
   useEffect(() => {
+    const controller = new AbortController();
     fetchActivityData();
-  }, [fetchActivityData]);
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   // Update query parameters
   const updateQueryParams = useCallback(

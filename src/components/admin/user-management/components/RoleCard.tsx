@@ -17,7 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import RolePermissionDisplay from "./RolePermissionDisplay";
 import {
   Collapsible,
@@ -25,6 +25,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Role } from "@/types";
+import { getRoleBadgeVariant } from "@/utils/helpers";
 
 interface RoleCardProps {
   role: Role;
@@ -43,41 +44,36 @@ const RoleCard = ({
 }: RoleCardProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Define common permission categories
-  const permissionCategories = [
-    "User Management",
-    "AI Configuration",
-    "Widget Builder",
-    "Knowledge Base",
-    "System Settings",
-  ];
-
-  // Check if role has permissions in a specific category
-  const hasPermissionInCategory = (category: string) => {
+  // Group permissions by category
+  const permissionsByCategory = useMemo(() => {
     if (!role.permissions || !Array.isArray(role.permissions)) {
-      return false;
+      return {};
     }
 
-    return role.permissions.some((permission) => {
-      const permId =
-        typeof permission === "string" ? permission : permission.id;
+    // Extract categories from permission names
+    const categories: Record<string, string[]> = {};
 
-      switch (category) {
-        case "User Management":
-          return permId.includes("user");
-        case "AI Configuration":
-          return permId.includes("ai") || permId.includes("model");
-        case "Widget Builder":
-          return permId.includes("widget");
-        case "Knowledge Base":
-          return permId.includes("kb") || permId.includes("knowledge");
-        case "System Settings":
-          return permId.includes("system") || permId.includes("setting");
-        default:
-          return false;
+    role.permissions.forEach(permission => {
+      // Extract category from permission name (e.g., "user.create" -> "user")
+      const category = permission.split('.')[0] || 'General';
+      const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1);
+
+      if (!categories[formattedCategory]) {
+        categories[formattedCategory] = [];
       }
+
+      categories[formattedCategory].push(permission);
     });
-  };
+
+    return categories;
+  }, [role.permissions]);
+
+  // Get all unique categories
+  const permissionCategories = useMemo(() =>
+    Object.keys(permissionsByCategory).length > 0
+      ? Object.keys(permissionsByCategory)
+      : ['User', 'Role', 'Permission', 'System'],
+    [permissionsByCategory]);
 
   return (
     <Card>
@@ -87,17 +83,17 @@ const RoleCard = ({
             <CardTitle>{role.name}</CardTitle>
             <CardDescription>{role.description}</CardDescription>
           </div>
-          <Badge variant="outline">
+          <Badge variant={getRoleBadgeVariant(role.name)}>
             {role.userCount || 0} {role.userCount === 1 ? "User" : "Users"}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          {permissionCategories.map((category) => (
+          {permissionCategories.map((category: string) => (
             <div key={category} className="flex items-center justify-between">
               <Label>{category}</Label>
-              {hasPermissionInCategory(category) ? (
+              {permissionsByCategory[category] && permissionsByCategory[category].length > 0 ? (
                 <CheckCircle2 className="h-4 w-4 text-green-500" />
               ) : (
                 <XCircle className="h-4 w-4 text-gray-500" />

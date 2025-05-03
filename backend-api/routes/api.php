@@ -7,18 +7,13 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ActivityLogController;
 
-
-
-
-
-
-// Authentication Routes
+// Authentication Routes (public)
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/password/email', [AuthController::class, 'forgotPassword']);
 Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 
-// Protected Routes
+// Protected Routes (require auth:sanctum)
 Route::middleware('auth:sanctum')->group(function () {
     // Auth
     Route::get('/user', [AuthController::class, 'user']);
@@ -27,9 +22,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Users
     Route::apiResource('users', UserController::class);
     Route::patch('/users/{id}/status', [UserController::class, 'updateStatus']);
+    Route::post('/users/{id}/password', [UserController::class, 'updatePassword']);
     Route::post('/users/password-reset', [UserController::class, 'sendPasswordReset']);
     Route::get('/users/{id}/permissions', [UserController::class, 'permissions']);
     Route::get('/users/{id}/activity-logs', [UserController::class, 'activityLogs']);
+    Route::post('/users/{id}/avatar', [UserController::class, 'uploadAvatar']);
 
     // Roles
     Route::apiResource('roles', RoleController::class);

@@ -10,10 +10,18 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
+  roles?: {
+    id: string;
+    name: string;
+    description?: string;
+    pivot?: {
+      is_active: boolean;
+    };
+  }[];
+  role?: string; // For backward compatibility
   status: string;
-  lastActive: string;
-  avatar: string;
+  last_active: string | null;
+  avatar: string | null;
 }
 
 // Permission Domain
@@ -40,17 +48,21 @@ export interface Role {
 
 // Activity Log Domain
 export interface ActivityLogEntry {
-  user: string;
-  action: string;
-  target: string;
-  timestamp: string;
-  avatar: string;
+  id: string;
+  user_id: string;
+  user_name: string;
+  action: "login" | "logout" | "create" | "update" | "delete";
+  description: string;
+  created_at: string;
+  user_avatar: string;
+  ip_address: string;
 }
 
 export interface NewUser {
   name: string;
   email: string;
   role: string;
+  password?: string;
 }
 
 export interface EditedUser {

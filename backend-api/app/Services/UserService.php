@@ -132,13 +132,13 @@ class UserService
     public function deleteUser(int $id): bool
     {
         $user = $this->userRepository->findOrFail($id);
-        
+
         // Store email for activity log
         $email = $user->email;
-        
+
         // Delete user
         $result = $this->userRepository->delete($user);
-        
+
         // Log activity
         $this->activityLogRepository->create([
             'user_id' => auth()->id(),
@@ -146,8 +146,35 @@ class UserService
             'target' => $email,
             'details' => json_encode(['user_id' => $id]),
         ]);
-        
+
         return $result;
+    }
+
+    /**
+     * Update user password.
+     *
+     * @param int $id
+     * @param array $data
+     * @return User
+     */
+    public function updateUserPassword(int $id, array $data): User
+    {
+        $user = $this->userRepository->findOrFail($id);
+
+        // Update password
+        $user = $this->userRepository->update($user, [
+            'password' => Hash::make($data['password']),
+        ]);
+
+        // Log activity
+        $this->activityLogRepository->create([
+            'user_id' => auth()->id(),
+            'action' => 'updated_user_password',
+            'target' => $user->email,
+            'details' => json_encode(['user_id' => $user->id]),
+        ]);
+
+        return $user->load('roles');
     }
 
     /**
@@ -161,7 +188,7 @@ class UserService
     {
         $user = $this->userRepository->findOrFail($id);
         $user = $this->userRepository->update($user, ['status' => $status]);
-        
+
         // Log activity
         $this->activityLogRepository->create([
             'user_id' => auth()->id(),
@@ -169,7 +196,7 @@ class UserService
             'target' => $user->email,
             'details' => json_encode(['user_id' => $user->id, 'status' => $status]),
         ]);
-        
+
         return $user;
     }
 
@@ -190,7 +217,7 @@ class UserService
                 'action' => 'sent_password_reset',
                 'target' => $email,
             ]);
-            
+
             return [
                 'success' => true,
                 'message' => __($status),

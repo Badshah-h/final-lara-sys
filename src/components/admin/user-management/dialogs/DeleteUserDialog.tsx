@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { User } from "../../../../types";
+import { userService } from "@/services/user-management/userService";
 
 interface DeleteUserDialogProps {
   open: boolean;
@@ -24,15 +25,19 @@ export function DeleteUserDialog({
   user,
 }: DeleteUserDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleDeleteUser = () => {
+  const handleDeleteUser = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      // In a real implementation, this would delete the user from the database
+    setError(null);
+    try {
+      await userService.deleteUser(user.id);
       onOpenChange(false);
+    } catch (err: any) {
+      setError(err?.message || "Failed to delete user.");
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -62,6 +67,7 @@ export function DeleteUserDialog({
             )}
           </AlertDialogAction>
         </AlertDialogFooter>
+        {error && <div className="text-destructive text-sm mb-2">{error}</div>}
       </AlertDialogContent>
     </AlertDialog>
   );

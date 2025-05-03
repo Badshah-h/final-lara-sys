@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +17,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { userService } from "@/services/user-management/userService";
+import StatusIcon from "@/components/admin/user-management/components/StatusIcon";
+import { useRoles } from "@/hooks/access-control/useRoles";
 
-import { User, EditedUser } from "../../../../types";
+import { User, EditedUser, Role } from "../../../../types";
 
 interface EditUserDialogProps {
   open: boolean;
@@ -31,23 +34,58 @@ export function EditUserDialog({
   onOpenChange,
   user,
 }: EditUserDialogProps) {
+  const { roles, fetchRoles, isLoading: isLoadingRoles } = useRoles();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Helper function to get the user's primary role name
+  const getUserRoleName = (): string => {
+    // If user has roles array and it's not empty
+    if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
+      // Get the first active role
+      const activeRole = user.roles.find(role => !role.pivot || role.pivot.is_active);
+      if (activeRole) {
+        return activeRole.name;
+      }
+    }
+
+    // Fallback to legacy role property
+    return user.role || '';
+  };
+
   const [editedUser, setEditedUser] = useState<EditedUser>({
     id: user.id,
     name: user.name,
     email: user.email,
-    role: user.role,
+    role: getUserRoleName(),
     status: user.status,
   });
+  const [error, setError] = useState<string | null>(null);
 
-  const handleEditUser = () => {
+  // Fetch roles only once when component mounts
+  useEffect(() => {
+    // Only fetch roles if they haven't been loaded yet
+    if (roles.length === 0) {
+      fetchRoles();
+    }
+  }, []);
+
+  const handleEditUser = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      // In a real implementation, this would update the user in the database
+    setError(null);
+    try {
+      await userService.updateUser(editedUser.id, {
+        name: editedUser.name,
+        email: editedUser.email,
+        role: editedUser.role,
+
+        status: editedUser.status,
+      });
       onOpenChange(false);
+    } catch (err: any) {
+      setError(err?.message || "Failed to update user.");
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -95,9 +133,21 @@ export function EditUserDialog({
                 <SelectValue placeholder="Select role" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="moderator">Moderator</SelectItem>
-                <SelectItem value="user">User</SelectItem>
+                {isLoadingRoles ? (
+                  <SelectItem value="" disabled>Loading roles...</SelectItem>
+                ) : roles && roles.length > 0 ? (
+                  roles.map((role: Role) => (
+                    <SelectItem key={role.id} value={role.name}>
+                      {role.name}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="moderator">Moderator</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                  </>
+                )}
               </SelectContent>
             </Select>
           </div>
@@ -110,15 +160,36 @@ export function EditUserDialog({
               }
             >
               <SelectTrigger id="edit-status">
-                <SelectValue placeholder="Select status" />
+                <SelectValue placeholder="Select status">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon status={editedUser.status} />
+                    {editedUser.status.charAt(0).toUpperCase() + editedUser.status.slice(1)}
+                  </div>
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="active">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon status="active" />
+                    Active
+                  </div>
+                </SelectItem>
+                <SelectItem value="inactive">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon status="inactive" />
+                    Inactive
+                  </div>
+                </SelectItem>
+                <SelectItem value="pending">
+                  <div className="flex items-center gap-2">
+                    <StatusIcon status="pending" />
+                    Pending
+                  </div>
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {error && <div className="text-destructive text-sm mb-2">{error}</div>}
         </div>
         <DialogFooter>
           <Button

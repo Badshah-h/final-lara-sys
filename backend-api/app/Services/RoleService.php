@@ -100,7 +100,7 @@ class RoleService
         }
 
         // Log activity
-        $this->activityLogRepository->create([
+        $this->activityLogRepository->update([
             'user_id' => auth()->id(),
             'action' => 'updated_role',
             'target' => $role->name,
@@ -119,18 +119,18 @@ class RoleService
     public function deleteRole(int $id): bool
     {
         $role = $this->roleRepository->findOrFail($id);
-        
+
         // Check if role has users
         if ($role->users()->count() > 0) {
             throw new \Exception('Cannot delete role with assigned users');
         }
-        
+
         // Store name for activity log
         $name = $role->name;
-        
+
         // Delete role
         $result = $this->roleRepository->delete($role);
-        
+
         // Log activity
         $this->activityLogRepository->create([
             'user_id' => auth()->id(),
@@ -138,7 +138,7 @@ class RoleService
             'target' => $name,
             'details' => json_encode(['role_id' => $id]),
         ]);
-        
+
         return $result;
     }
 
@@ -177,15 +177,15 @@ class RoleService
     {
         $role = $this->roleRepository->findOrFail($id);
         $role->syncPermissions($permissions);
-        
+
         // Log activity
-        $this->activityLogRepository->create([
+        $this->activityLogRepository->update([
             'user_id' => auth()->id(),
             'action' => 'updated_role_permissions',
             'target' => $role->name,
             'details' => json_encode(['role_id' => $role->id]),
         ]);
-        
+
         return $role->permissions->pluck('name')->toArray();
     }
 }

@@ -1,6 +1,6 @@
 /**
  * UI Helper Functions
- * 
+ *
  * Contains helper functions for UI components and user management.
  */
 
@@ -12,7 +12,8 @@ type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 /**
  * Get the appropriate badge variant for a user role
  */
-export const getRoleBadgeVariant = (role: string): BadgeVariant => {
+export const getRoleBadgeVariant = (role?: string): BadgeVariant => {
+  if (!role || typeof role !== "string") return "outline";
   switch (role.toLowerCase()) {
     case "admin":
       return "default";

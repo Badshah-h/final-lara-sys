@@ -74,19 +74,19 @@ const UserManagement = () => {
 
         <TabsContent value="users" className="space-y-4 pt-4">
           <Suspense fallback={<TabLoadingFallback />}>
-            <UsersList />
+            {activeTab === "users" && <UsersList />}
           </Suspense>
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4 pt-4">
           <Suspense fallback={<TabLoadingFallback />}>
-            <RolesPermissions />
+            {activeTab === "roles" && <RolesPermissions />}
           </Suspense>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-4 pt-4">
           <Suspense fallback={<TabLoadingFallback />}>
-            <ActivityLog />
+            {activeTab === "activity" && <ActivityLog />}
           </Suspense>
         </TabsContent>
       </Tabs>

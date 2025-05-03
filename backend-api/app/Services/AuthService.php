@@ -27,8 +27,8 @@ class AuthService
         if (!Auth::attempt($credentials)) {
             return [
                 'success' => false,
-                'message' => 'Invalid login credentials',
-                'code' => 401
+                'message' => 'Invalid email or password.',
+                'code' => 422
             ];
         }
 
@@ -45,8 +45,8 @@ class AuthService
         }
 
         // Update last active timestamp
-       // $user->last_active_at = now();
-       // $user->save();
+        $user->last_active = now();
+        $user->save();
 
         // Create token
         $token = $user->createToken('auth_token')->plainTextToken;

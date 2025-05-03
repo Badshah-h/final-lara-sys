@@ -15,6 +15,7 @@ import {
 
 import { Role, EditedRole, PermissionCategory } from "../../../../types";
 import PermissionGroup from "../components/PermissionGroup";
+import { useRoles } from "@/hooks/access-control/useRoles";
 
 interface EditRoleDialogProps {
   open: boolean;
@@ -34,26 +35,32 @@ export function EditRoleDialog({
   canEdit = true,
 }: EditRoleDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [editedRole, setEditedRole] = useState<EditedRole>({
     id: role.id,
     name: role.name,
     description: role.description || "",
     permissions: Array.isArray(role.permissions) ? [...role.permissions] : [],
   });
+  const { updateRole } = useRoles();
 
-  const handleEditRole = () => {
+  const handleEditRole = async () => {
     if (!canEdit) return;
-
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      // In a real implementation, this would update the role in the database
-      if (onSuccess) {
-        onSuccess();
-      }
+    setError(null);
+    try {
+      await updateRole(editedRole.id, {
+        name: editedRole.name,
+        description: editedRole.description,
+        permissions: editedRole.permissions,
+      });
+      if (onSuccess) onSuccess();
       onOpenChange(false);
+    } catch (err: any) {
+      setError(err?.message || "Failed to update role.");
+    } finally {
       setIsSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -108,13 +115,13 @@ export function EditRoleDialog({
                         setStateFunction={setEditedRole}
                         currentState={editedRole}
                         idPrefix={`edit-${role.id}`}
-                        disabled={!canEdit}
                       />
                     ))}
                   </div>
                 </ScrollArea>
               </div>
             </div>
+            {error && <div className="text-destructive text-sm mb-2">{error}</div>}
           </div>
         </div>
         <DialogFooter>

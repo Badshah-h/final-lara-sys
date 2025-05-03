@@ -15,14 +15,38 @@ interface UserRoleDisplayProps {
 const UserRoleDisplay = ({ user, allRoles = [] }: UserRoleDisplayProps) => {
   // Handle different data structures for user roles
   const getUserRoles = (): Role[] => {
-    // If user has role objects directly
+    // If user has roles array and it's not empty
     if (user.roles && Array.isArray(user.roles) && user.roles.length > 0) {
-      return user.roles;
+      // Only show active roles
+      return user.roles
+        .filter((role) => !role.pivot || role.pivot.is_active)
+        .map(role => ({
+          id: role.id,
+          name: role.name,
+          description: role.description || '',
+          userCount: 0,
+          permissions: []
+        }));
     }
 
-    // If user has a single role object
-    if (user.role && typeof user.role === "object") {
-      return [user.role];
+    // If user has a single role string (legacy format)
+    if (user.role && typeof user.role === 'string') {
+      // Try to find the role in allRoles
+      if (allRoles.length > 0) {
+        const foundRole = allRoles.find(r => r.name.toLowerCase() === user.role?.toLowerCase());
+        if (foundRole) {
+          return [foundRole];
+        }
+      }
+
+      // Create a simple role object from the string
+      return [{
+        id: user.role,
+        name: user.role,
+        description: '',
+        userCount: 0,
+        permissions: []
+      }];
     }
 
     // If user has role IDs and we have allRoles to match against
@@ -30,12 +54,6 @@ const UserRoleDisplay = ({ user, allRoles = [] }: UserRoleDisplayProps) => {
       return user.roleIds
         .map((roleId) => allRoles.find((r) => r.id === roleId))
         .filter(Boolean) as Role[];
-    }
-
-    // If user has a single roleId and we have allRoles to match against
-    if (user.roleId && allRoles.length > 0) {
-      const role = allRoles.find((r) => r.id === user.roleId);
-      return role ? [role] : [];
     }
 
     return [];

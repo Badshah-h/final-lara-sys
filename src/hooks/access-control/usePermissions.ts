@@ -51,10 +51,14 @@ export function usePermissions() {
     }
   }, [fetchPermissions]);
 
-  // Initial data fetch
+  // Initial data fetch - only when the component mounts
   useEffect(() => {
+    const controller = new AbortController();
     fetchPermissionData();
-  }, [fetchPermissionData]);
+    return () => {
+      controller.abort();
+    };
+  }, []);
 
   return {
     permissionCategories,

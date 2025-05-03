@@ -15,6 +15,7 @@ import {
 
 import { PermissionCategory } from "../../../../types";
 import PermissionGroup from "../components/PermissionGroup";
+import { useRoles } from "@/hooks/access-control/useRoles";
 
 interface CreateRoleDialogProps {
   open: boolean;
@@ -32,29 +33,31 @@ export function CreateRoleDialog({
   canCreate = true,
 }: CreateRoleDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [newRole, setNewRole] = useState({
     name: "",
     description: "",
     permissions: [],
   });
+  const { createRole } = useRoles();
 
-  const handleCreateRole = () => {
+  const handleCreateRole = async () => {
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      // In a real implementation, this would create the role in the database
-      if (onSuccess) {
-        onSuccess();
-      }
-      onOpenChange(false);
-      setIsSubmitting(false);
-      // Reset form
-      setNewRole({
-        name: "",
-        description: "",
-        permissions: [],
+    setError(null);
+    try {
+      await createRole({
+        name: newRole.name,
+        description: newRole.description,
+        permissions: newRole.permissions,
       });
-    }, 1000);
+      if (onSuccess) onSuccess();
+      onOpenChange(false);
+      setNewRole({ name: "", description: "", permissions: [] });
+    } catch (err: any) {
+      setError(err?.message || "Failed to create role.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -112,6 +115,7 @@ export function CreateRoleDialog({
                 </ScrollArea>
               </div>
             </div>
+            {error && <div className="text-destructive text-sm mb-2">{error}</div>}
           </div>
         </div>
         <DialogFooter>

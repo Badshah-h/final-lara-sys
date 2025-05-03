@@ -15,6 +15,8 @@ import {
   Mail,
   AlertCircle,
   CheckCircle2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useForm } from "react-hook-form";
@@ -56,6 +58,8 @@ const RegisterPage = () => {
   const [passwordStrength, setPasswordStrength] = useState(0);
   const [apiError, setApiError] = useState<string | null>(null);
   const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Initialize react-hook-form with zod resolver
   const {
@@ -143,8 +147,8 @@ const RegisterPage = () => {
       console.error("Registration failed:", error);
       setApiError(
         error.response?.data?.message ||
-          error.response?.data?.data?.message ||
-          "Registration failed. Please try again.",
+        error.response?.data?.data?.message ||
+        "Registration failed. Please try again.",
       );
     } finally {
       setIsLoading(false);
@@ -243,13 +247,23 @@ const RegisterPage = () => {
           <form onSubmit={handleSubmit(handleRegister)} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                {...register("password")}
-                placeholder="••••••••"
-                className={`h-12 ${errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  placeholder="••••••••"
+                  className={`h-12 ${errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowPassword((v) => !v)}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-sm text-red-500 mt-1">
                   {errors.password.message}
@@ -282,13 +296,23 @@ const RegisterPage = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                {...register("confirmPassword")}
-                placeholder="••••••••"
-                className={`h-12 ${errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}`}
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  {...register("confirmPassword")}
+                  placeholder="••••••••"
+                  className={`h-12 ${errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowConfirmPassword((v) => !v)}
+                  tabIndex={-1}
+                >
+                  {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="text-sm text-red-500 mt-1">
                   {errors.confirmPassword.message}

@@ -13,22 +13,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create a temporary admin user first to avoid foreign key issues
-        User::updateOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin User',
-                'password' => \Hash::make('password'),
-                'email_verified_at' => now(),
-                'remember_token' => \Str::random(10),
-            ]
-        );
-
-        // Run seeders in the correct order
+   // Run seeders in the correct order
         $this->call([
             PermissionSeeder::class,
-            RoleSeeder::class,
             UserSeeder::class,
+            RoleSeeder::class,
+            UserRoleAssignmentSeeder::class,
         ]);
     }
 }

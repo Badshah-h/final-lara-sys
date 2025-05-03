@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getRoleBadgeVariant } from "@/utils/helpers";
 
 const RoleCard = ({
   role,
@@ -66,7 +67,7 @@ const RoleCard = ({
             <CardTitle>{role.name}</CardTitle>
             <CardDescription>{role.description}</CardDescription>
           </div>
-          <Badge variant="outline">
+          <Badge variant={getRoleBadgeVariant(role.name)}>
             {role.userCount || 0} {role.userCount === 1 ? "User" : "Users"}
           </Badge>
         </div>
