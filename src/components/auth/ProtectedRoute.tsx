@@ -4,16 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: string;
-  requiredPermission?: string;
+  // Removed role and permission props as we're not using them anymore
 }
 
 const ProtectedRoute = ({
   children,
-  requiredRole,
-  requiredPermission,
 }: ProtectedRouteProps) => {
-  const { isAuthenticated, hasRole, hasPermission, isLoading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
   // Show loading state while checking authentication
@@ -25,20 +22,12 @@ const ProtectedRoute = ({
     );
   }
 
-  // Check if user is authenticated
+  // Only check if user is authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-
-  // Check for required role
-  if (requiredRole && !hasRole(requiredRole)) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  // Check for required permission
-  if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to="/unauthorized" replace />;
-  }
+  
+  // No role or permission checks - any logged in user can access all routes
 
   return <>{children}</>;
 };

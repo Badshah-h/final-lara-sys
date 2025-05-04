@@ -254,4 +254,36 @@ class UserService
         $user = $this->userRepository->findOrFail($id);
         return $this->activityLogRepository->getByUserId($user->id, $params);
     }
+
+    /**
+     * Upload user avatar.
+     *
+     * @param int $id
+     * @param \Illuminate\Http\UploadedFile $avatar
+     * @return User
+     */
+    public function uploadUserAvatar(int $id, $avatar): User
+    {
+        $user = $this->userRepository->findOrFail($id);
+
+        // Generate a unique filename
+        $filename = 'avatar_' . $user->id . '_' . time() . '.' . $avatar->getClientOriginalExtension();
+
+        // Store the file in the public storage
+        $avatar->storeAs('public/avatars', $filename);
+
+        // Update user with the new avatar path
+        $avatarPath = 'storage/avatars/' . $filename;
+        $user = $this->userRepository->update($user, ['avatar' => $avatarPath]);
+
+        // Log activity
+        $this->activityLogRepository->create([
+            'user_id' => auth()->id(),
+            'action' => 'updated_user_avatar',
+            'target' => $user->email,
+            'details' => json_encode(['user_id' => $user->id]),
+        ]);
+
+        return $user;
+    }
 }

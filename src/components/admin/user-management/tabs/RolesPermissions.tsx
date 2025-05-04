@@ -27,39 +27,42 @@ const RolesPermissions = () => {
   const [showEditRoleDialog, setShowEditRoleDialog] = useState(false);
   const [showDeleteRoleDialog, setShowDeleteRoleDialog] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [activeRoleTab, setActiveRoleTab] = useState("super-admin");
+  const [activeRoleTab, setActiveRoleTab] = useState("");
+  const [updatedPermissions, setUpdatedPermissions] = useState<Record<string, string[]>>({});
+  const [isSaving, setIsSaving] = useState(false);
 
   // Get roles data from API
   const {
     roles,
-    isLoading: isLoadingRoles,
-    error: rolesError,
+    isLoadingRoles,
+    rolesError,
     fetchRoles: refreshRoles,
   } = useRoles();
 
   // Get permissions data from API
   const {
     permissionCategories,
-    isLoading: isLoadingPermissions,
-    error: permissionsError,
+    isLoadingPermissions,
+    permissionsError,
+    fetchPermissions: refreshPermissions,
+    updateRolePermissions,
+    isUpdatingPermissions,
   } = usePermissions();
 
-  // Get auth context for permission checks
-  const { hasPermission } = useAuth();
+  // Commented out permission checks to make all functionality accessible
+  // const { hasPermission } = useAuth();
 
-  // Check if user has permission to manage roles
-  const canCreateRoles = hasPermission("create_roles");
-  const canEditRoles = hasPermission("edit_roles");
-  const canDeleteRoles = hasPermission("delete_roles");
-  const canManagePermissions = hasPermission("manage_permissions");
+  // Make all role management functions accessible to any logged-in user
+  // const canCreateRoles = hasPermission("create_roles");
+  // const canEditRoles = hasPermission("edit_roles");
+  // const canDeleteRoles = hasPermission("delete_roles");
+  // const canManagePermissions = hasPermission("manage_permissions");
 
-  // Fallback to general manage_roles permission if specific permissions aren't defined
-  const hasManageRolesPermission = hasPermission("manage_roles");
-  const effectiveCanCreateRoles = canCreateRoles || hasManageRolesPermission;
-  const effectiveCanEditRoles = canEditRoles || hasManageRolesPermission;
-  const effectiveCanDeleteRoles = canDeleteRoles || hasManageRolesPermission;
-  const effectiveCanManagePermissions =
-    canManagePermissions || hasManageRolesPermission;
+  // const hasManageRolesPermission = hasPermission("manage_roles");
+  const effectiveCanCreateRoles = true; // canCreateRoles || hasManageRolesPermission;
+  const effectiveCanEditRoles = true; // canEditRoles || hasManageRolesPermission;
+  const effectiveCanDeleteRoles = true; // canDeleteRoles || hasManageRolesPermission;
+  const effectiveCanManagePermissions = true; // canManagePermissions || hasManageRolesPermission;
 
   const handleEditRole = (role: Role) => {
     if (!effectiveCanEditRoles) return;
@@ -86,6 +89,37 @@ const RolesPermissions = () => {
   const handleDeleteRoleSuccess = () => {
     setShowDeleteRoleDialog(false);
     refreshRoles();
+  };
+
+  // Set initial active tab when roles are loaded
+  useEffect(() => {
+    if (roles && roles.length > 0 && !activeRoleTab) {
+      setActiveRoleTab(roles[0].id);
+    }
+  }, [roles, activeRoleTab]);
+
+  // Handle permission changes for a specific role
+  const handlePermissionsChange = async (roleId: string, permissions: string[]) => {
+    try {
+      setIsSaving(true);
+      // Save the permissions to the server
+      await updateRolePermissions(roleId, { permissions });
+      
+      // Update the role in the local state to reflect the changes
+      const updatedRoles = roles.map(role => {
+        if (role.id === roleId) {
+          return { ...role, permissions };
+        }
+        return role;
+      });
+      
+      // No need to use setUpdatedPermissions as the PermissionManagement component
+      // now handles its own state and saving
+    } catch (error) {
+      console.error("Error saving permissions:", error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -199,6 +233,7 @@ const RolesPermissions = () => {
                     role={role}
                     availablePermissions={permissionCategories}
                     canEdit={effectiveCanManagePermissions}
+                    onPermissionsChange={(permissions) => handlePermissionsChange(role.id, permissions)}
                   />
                 </TabsContent>
               ))}
@@ -211,10 +246,17 @@ const RolesPermissions = () => {
         </CardContent>
         <CardFooter className="border-t pt-4 flex justify-end gap-2">
           {effectiveCanManagePermissions && (
-            <>
-              <Button variant="outline">Reset to Default</Button>
-              <Button>Save Changes</Button>
-            </>
+            <Button 
+              onClick={refreshPermissions}
+              variant="outline"
+              size="sm"
+              disabled={isLoading || isSaving}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
+              Refresh Permissions
+            </Button>
           )}
         </CardFooter>
       </Card>

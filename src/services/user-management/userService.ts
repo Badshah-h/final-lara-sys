@@ -110,6 +110,52 @@ export class UserService {
       throw new Error("Failed to send password reset email");
     }
   }
+
+  /**
+   * Upload user avatar
+   */
+  async uploadAvatar(id: string, file: File): Promise<ApiResponse<User>> {
+    try {
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      const response = await api.post(`${API_BASE_URL}/users/${id}/avatar`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error uploading avatar for user ${id}:`, error);
+      throw new Error("Failed to upload avatar");
+    }
+  }
+
+  /**
+   * Update user status
+   */
+  async updateStatus(id: string, status: string): Promise<ApiResponse<User>> {
+    try {
+      const response = await api.patch(`${API_BASE_URL}/users/${id}/status`, { status });
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating status for user ${id}:`, error);
+      throw new Error("Failed to update user status");
+    }
+  }
+
+  /**
+   * Get user activity logs
+   */
+  async getUserActivityLogs(id: string, params?: any): Promise<PaginatedResponse<any>> {
+    try {
+      const response = await api.get(`${API_BASE_URL}/users/${id}/activity-logs`, { params });
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching activity logs for user ${id}:`, error);
+      throw new Error("Failed to fetch user activity logs");
+    }
+  }
 }
 
 // Export a singleton instance

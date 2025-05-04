@@ -2,7 +2,7 @@
 
 namespace App\Repositories;
 
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 
 class PermissionRepository extends BaseRepository
 {

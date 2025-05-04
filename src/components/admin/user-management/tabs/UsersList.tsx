@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Search,
   MoreHorizontal,
@@ -8,6 +9,7 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  User as UserIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,7 @@ import { SEARCH_DEBOUNCE_TIME } from "@/constants";
 
 // UsersList component with proper role and status filtering
 const UsersList = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("all"); // Default role filter
   const [selectedStatus, setSelectedStatus] = useState("all"); // Default status filter
@@ -127,6 +130,11 @@ const UsersList = () => {
   const openResetPasswordDialog = (user: User) => {
     setSelectedUser(user);
     setShowResetPasswordDialog(true);
+  };
+
+  // Navigate to user details page
+  const navigateToUserDetails = (user: User) => {
+    navigate(`/admin/user-management/users/${user.id}`);
   };
 
   // Handle manual refresh
@@ -256,7 +264,10 @@ const UsersList = () => {
                 users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div className="flex items-center space-x-3">
+                      <div
+                        className="flex items-center space-x-3 cursor-pointer hover:text-primary transition-colors"
+                        onClick={() => navigateToUserDetails(user)}
+                      >
                         <Avatar>
                           <AvatarImage src={user.avatar} />
                           <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>

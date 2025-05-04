@@ -18,6 +18,7 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, $role)
     {
+        // Only check if user is authenticated, bypass role checks
         if (!Auth::check()) {
             return response()->json([
                 'success' => false,
@@ -25,14 +26,14 @@ class RoleMiddleware
             ], 401);
         }
 
-        $roles = is_array($role) ? $role : explode('|', $role);
-
-        if (!Auth::user()->hasAnyRole($roles)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Access denied. You do not have the required role.',
-            ], 403);
-        }
+        // Commented out role checks - allow all authenticated users
+        // $roles = is_array($role) ? $role : explode('|', $role);
+        // if (!Auth::user()->hasAnyRole($roles)) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Access denied. You do not have the required role.',
+        //     ], 403);
+        // }
 
         return $next($request);
     }

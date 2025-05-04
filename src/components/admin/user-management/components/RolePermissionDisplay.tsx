@@ -14,21 +14,34 @@ const RolePermissionDisplay = ({
 }: RolePermissionDisplayProps) => {
   // Group permissions by module/category
   const groupPermissionsByCategory = () => {
-    // If we have the full permission objects available
-    if (availablePermissions.length > 0 && role.permissions) {
-      const rolePermissionIds = Array.isArray(role.permissions)
-        ? role.permissions.map((p) => (typeof p === "string" ? p : p.id))
-        : [];
+    // Ensure role.permissions is valid
+    if (!role.permissions) {
+      return {};
+    }
 
+    // Convert role.permissions to a clean array of strings
+    const rolePermissionIds: string[] = [];
+    if (Array.isArray(role.permissions)) {
+      role.permissions.forEach(p => {
+        if (typeof p === "string") {
+          rolePermissionIds.push(p);
+        } else if (p && typeof p === "object" && 'id' in p) {
+          rolePermissionIds.push((p as {id: string}).id);
+        }
+      });
+    }
+
+    // If we have the full permission objects available
+    if (availablePermissions.length > 0 && rolePermissionIds.length > 0) {
       const permissionsByCategory: Record<string, Permission[]> = {};
 
       // Only include permissions that this role has
-      const rolePermissions = availablePermissions.filter((p) =>
-        rolePermissionIds.includes(p.id),
+      const rolePermissions = availablePermissions.filter(p => 
+        rolePermissionIds.includes(p.id)
       );
 
       // Group by category/module
-      rolePermissions.forEach((permission) => {
+      rolePermissions.forEach(permission => {
         const category = permission.module || "General";
         if (!permissionsByCategory[category]) {
           permissionsByCategory[category] = [];
@@ -41,37 +54,35 @@ const RolePermissionDisplay = ({
 
     // Fallback if we only have permission IDs
     // Group by common prefixes in permission names
-    if (role.permissions && role.permissions.length > 0) {
+    if (rolePermissionIds.length > 0) {
       const permissionsByCategory: Record<string, string[]> = {
         "User Management": [],
-        "AI Configuration": [],
-        "Widget Builder": [],
-        "Knowledge Base": [],
+        "Role Management": [],
+        "Permission Management": [],
         "System Settings": [],
-        Other: [],
+        "Other": [],
       };
 
-      role.permissions.forEach((permission) => {
-        const permId =
-          typeof permission === "string" ? permission : permission.id;
+      rolePermissionIds.forEach(permId => {
+        if (!permId || typeof permId !== 'string') {
+          return;
+        }
 
         if (permId.includes("user")) {
           permissionsByCategory["User Management"].push(permId);
-        } else if (permId.includes("ai") || permId.includes("model")) {
-          permissionsByCategory["AI Configuration"].push(permId);
-        } else if (permId.includes("widget")) {
-          permissionsByCategory["Widget Builder"].push(permId);
-        } else if (permId.includes("kb") || permId.includes("knowledge")) {
-          permissionsByCategory["Knowledge Base"].push(permId);
+        } else if (permId.includes("role")) {
+          permissionsByCategory["Role Management"].push(permId);
+        } else if (permId.includes("permission")) {
+          permissionsByCategory["Permission Management"].push(permId);
         } else if (permId.includes("system") || permId.includes("setting")) {
           permissionsByCategory["System Settings"].push(permId);
         } else {
-          permissionsByCategory.Other.push(permId);
+          permissionsByCategory["Other"].push(permId);
         }
       });
 
       // Remove empty categories
-      Object.keys(permissionsByCategory).forEach((key) => {
+      Object.keys(permissionsByCategory).forEach(key => {
         if (permissionsByCategory[key].length === 0) {
           delete permissionsByCategory[key];
         }

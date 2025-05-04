@@ -49,11 +49,24 @@ const UserRoleDisplay = ({ user, allRoles = [] }: UserRoleDisplayProps) => {
       }];
     }
 
-    // If user has role IDs and we have allRoles to match against
-    if (user.roleIds && Array.isArray(user.roleIds) && allRoles.length > 0) {
-      return user.roleIds
-        .map((roleId) => allRoles.find((r) => r.id === roleId))
-        .filter(Boolean) as Role[];
+    // If user has roles array and we have allRoles to match against
+    if (user.roles && Array.isArray(user.roles) && allRoles.length > 0) {
+      // Check if user.roles contains full role objects or just IDs
+      if (user.roles.length > 0 && typeof user.roles[0] === 'object') {
+        // If they're already role objects, just return them (after ensuring they match our Role type)
+        return user.roles.map(role => ({
+          id: role.id,
+          name: role.name,
+          description: role.description || '',
+          userCount: 0,
+          permissions: []
+        }));
+      } else {
+        // If they're just IDs, find the matching roles from allRoles
+        return user.roles
+          .map((roleId) => allRoles.find((r) => r.id === roleId))
+          .filter(Boolean) as Role[];
+      }
     }
 
     return [];

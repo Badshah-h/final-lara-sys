@@ -46,23 +46,40 @@ const RoleCard = ({
 
   // Group permissions by category
   const permissionsByCategory = useMemo(() => {
-    if (!role.permissions || !Array.isArray(role.permissions)) {
+    if (!role.permissions) {
       return {};
     }
 
     // Extract categories from permission names
     const categories: Record<string, string[]> = {};
 
-    role.permissions.forEach(permission => {
+    // Handle different permission data structures
+    const processPermissions = Array.isArray(role.permissions) ? role.permissions : [];
+    
+    processPermissions.forEach(permission => {
+      // Handle permission object or string
+      let permissionName: string;
+      
+      if (typeof permission === 'string') {
+        permissionName = permission;
+      } else if (permission && typeof permission === 'object' && permission !== null && 'name' in permission) {
+        // If permission is an object with a name property
+        permissionName = (permission as { name: string }).name;
+      } else {
+        // Skip invalid permissions
+        return;
+      }
+      
       // Extract category from permission name (e.g., "user.create" -> "user")
-      const category = permission.split('.')[0] || 'General';
+      const parts = permissionName.split('.');
+      const category = parts.length > 0 ? parts[0] : 'General';
       const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1);
 
       if (!categories[formattedCategory]) {
         categories[formattedCategory] = [];
       }
 
-      categories[formattedCategory].push(permission);
+      categories[formattedCategory].push(permissionName);
     });
 
     return categories;

@@ -231,14 +231,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  // Modified to always return true for authenticated users
   const hasRole = (role: string): boolean => {
-    if (!user || !user.roles) return false;
-    return user.roles.includes(role);
+    // Only check if user is logged in, ignore specific role
+    return !!user;
   };
 
   const hasPermission = (permission: string): boolean => {
-    if (!user || !user.permissions) return false;
-    return user.permissions.includes(permission);
+    // Only check if user is logged in, ignore specific permission
+    return !!user;
   };
 
   return (

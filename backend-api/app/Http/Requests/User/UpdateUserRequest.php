@@ -37,7 +37,6 @@ class UpdateUserRequest extends FormRequest
             ],
             'password' => 'sometimes|string|min:8',
             'role' => 'sometimes|string|exists:roles,name',
-            'avatar' => 'sometimes|string|nullable',
         ];
     }
 }

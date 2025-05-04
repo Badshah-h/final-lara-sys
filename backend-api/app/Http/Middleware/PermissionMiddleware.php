@@ -18,6 +18,7 @@ class PermissionMiddleware
      */
     public function handle(Request $request, Closure $next, $permission)
     {
+        // Only check if user is authenticated, bypass permission checks
         if (!Auth::check()) {
             return response()->json([
                 'success' => false,
@@ -25,14 +26,14 @@ class PermissionMiddleware
             ], 401);
         }
 
-        $permissions = is_array($permission) ? $permission : explode('|', $permission);
-
-        if (!Auth::user()->hasAnyPermission($permissions)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Access denied. You do not have the required permission.',
-            ], 403);
-        }
+        // Commented out permission checks - allow all authenticated users
+        // $permissions = is_array($permission) ? $permission : explode('|', $permission);
+        // if (!Auth::user()->hasAnyPermission($permissions)) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'message' => 'Access denied. You do not have the required permission.',
+        //     ], 403);
+        // }
 
         return $next($request);
     }

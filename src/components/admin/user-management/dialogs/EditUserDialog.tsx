@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +20,8 @@ import {
 import { userService } from "@/services/user-management/userService";
 import StatusIcon from "@/components/admin/user-management/components/StatusIcon";
 import { useRoles } from "@/hooks/access-control/useRoles";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Camera } from "lucide-react";
 
 import { User, EditedUser, Role } from "../../../../types";
 
@@ -36,6 +38,9 @@ export function EditUserDialog({
 }: EditUserDialogProps) {
   const { roles, fetchRoles, isLoading: isLoadingRoles } = useRoles();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(user.avatar);
 
   // Helper function to get the user's primary role name
   const getUserRoleName = (): string => {
@@ -60,6 +65,37 @@ export function EditUserDialog({
     status: user.status,
   });
   const [error, setError] = useState<string | null>(null);
+
+  // Handle avatar upload
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsUploadingAvatar(true);
+      setError(null);
+
+      // Create a preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload to server
+      await userService.uploadAvatar(user.id, file);
+    } catch (err: any) {
+      setError(err?.message || "Failed to upload avatar");
+      // Revert preview on error
+      setAvatarPreview(user.avatar);
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
 
   // Fetch roles only once when component mounts
   useEffect(() => {
@@ -98,6 +134,36 @@ export function EditUserDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          {/* Avatar Upload */}
+          <div className="flex flex-col items-center mb-4">
+            <div
+              className="relative cursor-pointer group"
+              onClick={handleAvatarClick}
+            >
+              <Avatar className="h-24 w-24 border-2 border-primary/20">
+                <AvatarImage src={avatarPreview || undefined} alt={user.name} />
+                <AvatarFallback className="text-lg">{user.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {isUploadingAvatar ? (
+                  <div className="h-6 w-6 rounded-full border-2 border-t-transparent border-white animate-spin"></div>
+                ) : (
+                  <Camera className="h-6 w-6 text-white" />
+                )}
+              </div>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/*"
+              onChange={handleFileChange}
+            />
+            <span className="text-xs text-muted-foreground mt-2">
+              Click to upload avatar
+            </span>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="edit-name">Full Name</Label>
             <Input

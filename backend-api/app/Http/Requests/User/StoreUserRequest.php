@@ -29,7 +29,6 @@ class StoreUserRequest extends FormRequest
             'password' => 'required|string|min:8',
             'role' => 'sometimes|string|exists:roles,name,id',
             'status' => 'sometimes|string|in:active,inactive,pending',
-            'avatar' => 'sometimes|string|nullable',
             'send_email' => 'sometimes|boolean',
         ];
     }

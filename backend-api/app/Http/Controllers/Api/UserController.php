@@ -153,4 +153,21 @@ class UserController extends BaseApiController
         $user = $this->userService->updateUserPassword($id, $request->validated());
         return $this->successResponse($user, 'Password updated successfully');
     }
+
+    /**
+     * Upload user avatar.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function uploadAvatar(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        ]);
+
+        $user = $this->userService->uploadUserAvatar($id, $request->file('avatar'));
+        return $this->successResponse($user, 'Avatar uploaded successfully');
+    }
 }

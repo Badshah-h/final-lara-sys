@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             RoleSeeder::class,
             UserRoleAssignmentSeeder::class,
+            AdminPermissionSeeder::class, // Added to ensure admin has all permissions
         ]);
     }
 }

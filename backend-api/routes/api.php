@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ActivityLogController;
+use App\Http\Controllers\Api\WidgetController;
 
 // Authentication Routes (public)
 Route::post('/login', [AuthController::class, 'login']);
@@ -41,4 +42,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/activity-logs', [ActivityLogController::class, 'index']);
     Route::get('/activity-logs/{id}', [ActivityLogController::class, 'show']);
     Route::get('/activity-logs/export', [ActivityLogController::class, 'export']);
+    
+    // Widget Configuration
+    Route::get('/widget/config', [WidgetController::class, 'getConfig']);
+    Route::post('/widget/config', [WidgetController::class, 'saveConfig']);
 });

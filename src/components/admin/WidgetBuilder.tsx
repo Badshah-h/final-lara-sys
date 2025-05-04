@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -30,16 +30,161 @@ import {
   Check,
   Eye,
 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { getWidgetConfig, saveWidgetConfig } from "@/services/api/widget";
 
 const WidgetBuilder = () => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("appearance");
   const [previewDevice, setPreviewDevice] = useState("desktop");
   const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Define TypeScript interface for widget configuration
+  interface WidgetConfigType {
+    appearance: {
+      primaryColor: string;
+      secondaryColor: string;
+      position: string;
+      size: string;
+      darkMode: boolean;
+    };
+    behavior: {
+      autoOpen: boolean;
+      autoOpenDelay: number;
+      autoOpenTrigger?: string;
+      persistOpen: boolean;
+      showNotifications: boolean;
+      collectUserInfo: boolean;
+      requiredFields: string[];
+    };
+    content: {
+      welcomeMessage: string;
+      botName: string;
+      placeholderText: string;
+      offlineMessage: string;
+    };
+    advanced: {
+      customCSS: string;
+      customJS: string;
+      domain: string;
+      apiKey: string;
+      secureMode?: boolean;
+      dataCollection?: boolean;
+    };
+  }
+
+  // Widget configuration state
+  const [widgetConfig, setWidgetConfig] = useState<WidgetConfigType>({
+    appearance: {
+      primaryColor: "#1e40af",
+      secondaryColor: "#e2e8f0",
+      position: "bottom-right",
+      size: "medium",
+      darkMode: true
+    },
+    behavior: {
+      autoOpen: false,
+      autoOpenDelay: 5,
+      autoOpenTrigger: "time",
+      persistOpen: false,
+      showNotifications: true,
+      collectUserInfo: true,
+      requiredFields: ["name", "email"]
+    },
+    content: {
+      welcomeMessage: "Hi there! How can I help you today?",
+      botName: "AI Assistant",
+      placeholderText: "Type your message here...",
+      offlineMessage: "We're currently offline. Please leave a message and we'll get back to you."
+    },
+    advanced: {
+      customCSS: "",
+      customJS: "",
+      domain: "",
+      apiKey: "",
+      secureMode: true,
+      dataCollection: true
+    }
+  });
+
+  // Load widget configuration from API
+  useEffect(() => {
+    const fetchWidgetConfig = async () => {
+      try {
+        setLoading(true);
+        const response = await getWidgetConfig();
+        if (response.success && response.data) {
+          setWidgetConfig(response.data);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching widget config:', error);
+        toast({
+          variant: "destructive",
+          title: "Error loading configuration",
+          description: "There was an error loading your widget configuration."
+        });
+        setLoading(false);
+      }
+    };
+    
+    fetchWidgetConfig();
+  }, [toast]);
+  
+  // Handle form field changes
+  const handleChange = (section, field, value) => {
+    setWidgetConfig(prev => ({
+      ...prev,
+      [section]: {
+        ...prev[section],
+        [field]: value
+      }
+    }));
+  };
+  
+  // Save widget configuration
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      const response = await saveWidgetConfig(widgetConfig);
+      if (response.success) {
+        toast({
+          title: "Configuration saved",
+          description: "Your widget configuration has been saved successfully."
+        });
+      } else {
+        throw new Error(response.message || 'Unknown error');
+      }
+      setSaving(false);
+    } catch (error) {
+      console.error('Error saving widget config:', error);
+      toast({
+        variant: "destructive",
+        title: "Error saving configuration",
+        description: "There was an error saving your widget configuration."
+      });
+      setSaving(false);
+    }
+  };
 
   const handleCopyCode = () => {
-    // In a real implementation, this would copy the widget embed code
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    // Copy the widget embed code to clipboard
+    const embedCode = `<script src="${window.location.origin}/widget.js" data-widget-id="${widgetConfig.advanced.apiKey || 'YOUR_API_KEY'}"></script>`;
+    navigator.clipboard.writeText(embedCode)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy:', err);
+        toast({
+          variant: "destructive",
+          title: "Copy failed",
+          description: "Failed to copy embed code to clipboard."
+        });
+      });
   };
 
   return (
@@ -51,8 +196,8 @@ const WidgetBuilder = () => {
             Customize and generate your chat widget
           </p>
         </div>
-        <Button>
-          <Save className="mr-2 h-4 w-4" /> Save Configuration
+        <Button onClick={handleSave} disabled={saving}>
+          <Save className="mr-2 h-4 w-4" /> {saving ? 'Saving...' : 'Save Configuration'}
         </Button>
       </div>
 
@@ -87,9 +232,13 @@ const WidgetBuilder = () => {
                       <div className="flex gap-2">
                         <div
                           className="h-10 w-10 rounded border"
-                          style={{ backgroundColor: "#1e40af" }}
+                          style={{ backgroundColor: widgetConfig.appearance.primaryColor }}
                         />
-                        <Input type="text" value="#1e40af" />
+                        <Input 
+                          type="text" 
+                          value={widgetConfig.appearance.primaryColor} 
+                          onChange={(e) => handleChange('appearance', 'primaryColor', e.target.value)}
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -97,16 +246,23 @@ const WidgetBuilder = () => {
                       <div className="flex gap-2">
                         <div
                           className="h-10 w-10 rounded border"
-                          style={{ backgroundColor: "#e2e8f0" }}
+                          style={{ backgroundColor: widgetConfig.appearance.secondaryColor }}
                         />
-                        <Input type="text" value="#e2e8f0" />
+                        <Input 
+                          type="text" 
+                          value={widgetConfig.appearance.secondaryColor} 
+                          onChange={(e) => handleChange('appearance', 'secondaryColor', e.target.value)}
+                        />
                       </div>
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label>Widget Position</Label>
-                    <Select defaultValue="bottom-right">
+                    <Select 
+                      value={widgetConfig.appearance.position}
+                      onValueChange={(value) => handleChange('appearance', 'position', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select position" />
                       </SelectTrigger>
@@ -123,7 +279,10 @@ const WidgetBuilder = () => {
 
                   <div className="space-y-2">
                     <Label>Widget Size</Label>
-                    <Select defaultValue="medium">
+                    <Select 
+                      value={widgetConfig.appearance.size}
+                      onValueChange={(value) => handleChange('appearance', 'size', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select size" />
                       </SelectTrigger>
@@ -142,7 +301,11 @@ const WidgetBuilder = () => {
                         Enable dark mode for your widget
                       </p>
                     </div>
-                    <Switch id="dark-mode" checked={true} />
+                    <Switch 
+                      id="dark-mode" 
+                      checked={widgetConfig.appearance.darkMode} 
+                      onCheckedChange={(checked) => handleChange('appearance', 'darkMode', checked)}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -164,16 +327,27 @@ const WidgetBuilder = () => {
                         Automatically open the chat after page load
                       </p>
                     </div>
-                    <Switch id="auto-open" />
+                    <Switch 
+                      id="auto-open" 
+                      checked={widgetConfig.behavior.autoOpen}
+                      onCheckedChange={(checked) => handleChange('behavior', 'autoOpen', checked)}
+                    />
                   </div>
                   <Separator />
                   <div className="space-y-2">
                     <Label>Auto Open Delay (seconds)</Label>
-                    <Input type="number" value="5" min="0" max="60" />
+                    <Input
+                      type="number"
+                      value={widgetConfig.behavior.autoOpenDelay}
+                      onChange={(e) => handleChange('behavior', 'autoOpenDelay', parseInt(e.target.value) || 0)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Auto Open Trigger</Label>
-                    <Select defaultValue="time">
+                    <Select
+                      value={widgetConfig.behavior.autoOpenTrigger}
+                      onValueChange={(value) => handleChange('behavior', 'autoOpenTrigger', value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select trigger" />
                       </SelectTrigger>
@@ -190,12 +364,42 @@ const WidgetBuilder = () => {
                   <Separator />
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
-                      <Label htmlFor="sound-effects">Sound Effects</Label>
+                      <Label htmlFor="notifications">Notifications</Label>
                       <p className="text-sm text-muted-foreground">
-                        Play sound on new messages
+                        Show notifications for new messages
                       </p>
                     </div>
-                    <Switch id="sound-effects" checked={true} />
+                    <Switch
+                      id="notifications"
+                      checked={widgetConfig.behavior.showNotifications}
+                      onCheckedChange={(checked) => handleChange('behavior', 'showNotifications', checked)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="persist-open">Persist Open</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Keep the chat open after the user closes it
+                      </p>
+                    </div>
+                    <Switch
+                      id="persist-open"
+                      checked={widgetConfig.behavior.persistOpen}
+                      onCheckedChange={(checked) => handleChange('behavior', 'persistOpen', checked)}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="collect-info">Collect User Info</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Collect user information for analytics
+                      </p>
+                    </div>
+                    <Switch
+                      id="collect-info"
+                      checked={widgetConfig.behavior.collectUserInfo}
+                      onCheckedChange={(checked) => handleChange('behavior', 'collectUserInfo', checked)}
+                    />
                   </div>
                 </CardContent>
               </Card>
@@ -212,24 +416,34 @@ const WidgetBuilder = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Widget Title</Label>
-                    <Input type="text" value="Chat Support" />
+                    <Input
+                      type="text"
+                      value={widgetConfig.content.botName}
+                      onChange={(e) => handleChange('content', 'botName', e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Welcome Message</Label>
                     <Input
                       type="text"
-                      value="Hello! How can I help you today?"
+                      value={widgetConfig.content.welcomeMessage}
+                      onChange={(e) => handleChange('content', 'welcomeMessage', e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Placeholder Text</Label>
-                    <Input type="text" value="Type your message here..." />
+                    <Input
+                      type="text"
+                      value={widgetConfig.content.placeholderText}
+                      onChange={(e) => handleChange('content', 'placeholderText', e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Offline Message</Label>
                     <Input
                       type="text"
-                      value="We're currently offline. Please leave a message."
+                      value={widgetConfig.content.offlineMessage}
+                      onChange={(e) => handleChange('content', 'offlineMessage', e.target.value)}
                     />
                   </div>
                 </CardContent>
@@ -247,11 +461,16 @@ const WidgetBuilder = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Widget ID</Label>
-                    <Input type="text" value="my-chat-widget" />
+                    <Input type="text" value={widgetConfig.advanced.apiKey} />
                   </div>
                   <div className="space-y-2">
                     <Label>Domain Restriction</Label>
-                    <Input type="text" placeholder="e.g., example.com" />
+                    <Input
+                      type="text"
+                      value={widgetConfig.advanced.domain}
+                      placeholder="example.com"
+                      onChange={(e) => handleChange('advanced', 'domain', e.target.value)}
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -260,7 +479,11 @@ const WidgetBuilder = () => {
                         Enable additional security features
                       </p>
                     </div>
-                    <Switch id="secure-mode" checked={true} />
+                    <Switch
+                      id="secure-mode"
+                      checked={widgetConfig.advanced.secureMode}
+                      onCheckedChange={(checked) => handleChange('advanced', 'secureMode', checked)}
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -269,7 +492,11 @@ const WidgetBuilder = () => {
                         Collect user data for analytics
                       </p>
                     </div>
-                    <Switch id="data-collection" checked={true} />
+                    <Switch
+                      id="data-collection"
+                      checked={widgetConfig.advanced.dataCollection}
+                      onCheckedChange={(checked) => handleChange('advanced', 'dataCollection', checked)}
+                    />
                   </div>
                 </CardContent>
               </Card>
