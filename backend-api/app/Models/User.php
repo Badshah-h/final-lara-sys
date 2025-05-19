@@ -216,4 +216,17 @@ class User extends Authenticatable
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+
+    /**
+     * The permissions that belong to the user.
+     */
+    public function permissions()
+    {
+        return $this->belongsToMany(
+            Permission::class,
+            'permission_user', // Pivot table name
+            'user_id',
+            'permission_id'
+        )->withTimestamps();
+    }
 }
