@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -14,40 +13,37 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create admin user
-        $adminUser = User::updateOrCreate(
-            ['email' => 'admin@example.com'],
-            [
-                'name' => 'Admin User',
-                'password' => Hash::make('Admin123'),
-                'email_verified_at' => now(),
-                'remember_token' => \Str::random(10),
-            ]
-        );
+        \DB::table('users')->delete();
 
-        // Create moderator user
-        $moderatorUser = User::updateOrCreate(
-            ['email' => 'moderator@example.com'],
-            [
-                'name' => 'Moderator User',
-                'password' => Hash::make('Moderator123'),
-                'email_verified_at' => now(),
-                'remember_token' => \Str::random(10),
-            ]
-        );
+
+        // Create admin user
+        $admin = User::create([
+            'name' => 'Admin User',
+            'email' => 'admin@example.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+            'last_active' => now(),
+        ]);
+        $admin->assignRole('admin');
+
+        // Create manager user
+        $manager = User::create([
+            'name' => 'Manager User',
+            'email' => 'manager@example.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+            'last_active' => now(),
+        ]);
+        $manager->assignRole('manager');
 
         // Create regular user
-        $regularUser = User::updateOrCreate(
-            ['email' => 'user@example.com'],
-            [
-                'name' => 'Regular User',
-                'password' => Hash::make('User123'),
-                'email_verified_at' => now(),
-                'remember_token' => \Str::random(10),
-            ]
-        );
-
-        // Create additional regular users
-        User::factory(5)->create();
+        $user = User::create([
+            'name' => 'Regular User',
+            'email' => 'user@example.com',
+            'password' => Hash::make('password'),
+            'status' => 'active',
+            'last_active' => now(),
+        ]);
+        $user->assignRole('user');
     }
 }

@@ -387,6 +387,14 @@ class AuthService extends BaseApiService {
     // Token is still valid and not close to expiration
     return true;
   }
+
+  /**
+   * Request a password reset link (alias for forgotPassword)
+   * @param email The user's email address
+   */
+  async requestPasswordReset(email: string) {
+    return this.forgotPassword({ email })
+  }
 }
 
 export const authService = new AuthService();

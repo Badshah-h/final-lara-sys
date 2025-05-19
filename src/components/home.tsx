@@ -1,58 +1,140 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import ChatWidget from "./chat/ChatWidget";
-import AdminLayout from "./admin/AdminLayout";
+
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  Calendar,
+  Users,
+  Bot,
+  Database,
+  BarChart3,
+  Settings,
+  MessageSquare,
+  Code,
+  Webhook,
+  ServerCog
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import Dashboard from "./admin/Dashboard";
 import ModuleDashboard from "./admin/ModuleDashboard";
 import AIConfiguration from "./admin/AIConfiguration";
 import WidgetBuilder from "./admin/WidgetBuilder";
 import KnowledgeBase from "./admin/KnowledgeBase";
 import UserManagement from "./admin/user-management";
-import ThemeBuilder from "./admin/ThemeBuilder";
-import ApiTester from "./api-tester/ApiTester";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  MessageSquare,
-  Home as HomeIcon,
-  Code,
-  BarChart3,
-  Webhook,
-  Settings,
-  ServerCog,
-} from "lucide-react";
 
-function Home() {
-  const [activeView, setActiveView] = useState("dashboard");
-  const [isTransitioning, setIsTransitioning] = useState(false);
+const Home = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [mounted, setMounted] = useState(false);
 
-  const handleViewChange = (view: string) => {
-    setIsTransitioning(true);
-    setTimeout(() => {
-      setActiveView(view);
-      setIsTransitioning(false);
-    }, 300); // Match the duration-300 in the transition class
+  // Get the view parameter from the URL
+  const searchParams = new URLSearchParams(location.search);
+  const currentView = searchParams.get('view') || 'dashboard';
+
+  useEffect(() => {
+    setMounted(true);
+
+    // Add animation classes to cards with delay
+    const cards = document.querySelectorAll('.module-card');
+    cards.forEach((card, index) => {
+      setTimeout(() => {
+        card.classList.add('animate-fade-in');
+      }, index * 100);
+    });
+  }, []);
+
+  const modules = [
+    {
+      id: "dashboard",
+      name: "Dashboard",
+      description: "View system analytics and metrics",
+      icon: <BarChart3 className="h-8 w-8" />,
+      color: "blue",
+      path: "/dashboard?view=dashboard"
+    },
+    {
+      id: "user-management",
+      name: "User Management",
+      description: "Manage users, roles and permissions",
+      icon: <Users className="h-8 w-8" />,
+      color: "green",
+      path: "/dashboard?view=user-management"
+    },
+    {
+      id: "ai-config",
+      name: "AI Configuration",
+      description: "Configure AI models and responses",
+      icon: <Bot className="h-8 w-8" />,
+      color: "purple",
+      path: "/dashboard?view=ai-config"
+    },
+    {
+      id: "knowledge-base",
+      name: "Knowledge Base",
+      description: "Manage your knowledge base content",
+      icon: <Database className="h-8 w-8" />,
+      color: "amber",
+      path: "/dashboard?view=knowledge-base"
+    },
+    {
+      id: "conversations",
+      name: "Conversations",
+      description: "View and manage chat conversations",
+      icon: <MessageSquare className="h-8 w-8" />,
+      color: "orange",
+      path: "/dashboard?view=conversations"
+    },
+    {
+      id: "widget-builder",
+      name: "Widget Builder",
+      description: "Create and customize chat widgets",
+      icon: <Code className="h-8 w-8" />,
+      color: "indigo",
+      path: "/dashboard?view=widget-builder"
+    },
+    {
+      id: "analytics",
+      name: "Analytics",
+      description: "Detailed analytics and reporting",
+      icon: <BarChart3 className="h-8 w-8" />,
+      color: "cyan",
+      path: "/dashboard?view=analytics"
+    },
+    {
+      id: "api-tester",
+      name: "API Tester",
+      description: "Test API endpoints and integrations",
+      icon: <Webhook className="h-8 w-8" />,
+      color: "emerald",
+      path: "/api-tester"
+    },
+    {
+      id: "settings",
+      name: "Settings",
+      description: "Configure system settings",
+      icon: <Settings className="h-8 w-8" />,
+      color: "slate",
+      path: "/dashboard?view=settings"
+    },
+  ];
+
+  const handleModuleClick = (path: string) => {
+    navigate(path);
   };
 
-  // Use the new ModuleDashboard component for the main dashboard view
-
+  // Function to render the appropriate content based on the view parameter
   const renderContent = () => {
-    // If we're on the dashboard view, show the new ModuleDashboard
-    if (activeView === "dashboard") {
-      return <ModuleDashboard />;
-    }
-
-    // Otherwise, render the appropriate component based on the active view
-    switch (activeView) {
-      case "conversations":
+    switch (currentView) {
+      case 'dashboard':
+        return <Dashboard />;
+      case 'user-management':
+        return <UserManagement />;
+      case 'ai-config':
+        return <AIConfiguration />;
+      case 'knowledge-base':
+        return <KnowledgeBase />;
+      case 'widget-builder':
+        return <WidgetBuilder />;
+      case 'conversations':
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -75,17 +157,7 @@ function Home() {
             </div>
           </div>
         );
-      case "ai-config":
-        return <AIConfiguration />;
-      case "widget-builder":
-        return <WidgetBuilder />;
-      case "knowledge-base":
-        return <KnowledgeBase />;
-      case "user-management":
-        return <UserManagement />;
-      case "api-tester":
-        return <ApiTester />;
-      case "analytics":
+      case 'analytics':
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -106,7 +178,7 @@ function Home() {
             </div>
           </div>
         );
-      case "settings":
+      case 'settings':
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -132,35 +204,65 @@ function Home() {
     }
   };
 
-  const getActivePageName = () => {
-    switch (activeView) {
-      case "dashboard":
-        return "Dashboard";
-      case "conversations":
-        return "Conversations";
-      case "ai-config":
-        return "AI Configuration";
-      case "widget-builder":
-        return "Widget Builder";
-      case "knowledge-base":
-        return "Knowledge Base";
-      case "user-management":
-        return "User Management";
-      case "analytics":
-        return "Analytics";
-      case "embedding":
-        return "Embedding";
-      case "integrations":
-        return "Integrations";
-      case "settings":
-        return "Settings";
-      case "api-tester":
-        return "API Tester";
-      default:
-        return "Dashboard";
-    }
+  const getColorClasses = (color: string) => {
+    const colorMap: Record<string, { bg: string, text: string, hover: string }> = {
+      blue: { bg: "bg-blue-100 dark:bg-blue-900", text: "text-blue-600 dark:text-blue-400", hover: "hover:bg-blue-200 dark:hover:bg-blue-800" },
+      green: { bg: "bg-green-100 dark:bg-green-900", text: "text-green-600 dark:text-green-400", hover: "hover:bg-green-200 dark:hover:bg-green-800" },
+      purple: { bg: "bg-purple-100 dark:bg-purple-900", text: "text-purple-600 dark:text-purple-400", hover: "hover:bg-purple-200 dark:hover:bg-purple-800" },
+      amber: { bg: "bg-amber-100 dark:bg-amber-900", text: "text-amber-600 dark:text-amber-400", hover: "hover:bg-amber-200 dark:hover:bg-amber-800" },
+      orange: { bg: "bg-orange-100 dark:bg-orange-900", text: "text-orange-600 dark:text-orange-400", hover: "hover:bg-orange-200 dark:hover:bg-orange-800" },
+      indigo: { bg: "bg-indigo-100 dark:bg-indigo-900", text: "text-indigo-600 dark:text-indigo-400", hover: "hover:bg-indigo-200 dark:hover:bg-indigo-800" },
+      cyan: { bg: "bg-cyan-100 dark:bg-cyan-900", text: "text-cyan-600 dark:text-cyan-400", hover: "hover:bg-cyan-200 dark:hover:bg-cyan-800" },
+      emerald: { bg: "bg-emerald-100 dark:bg-emerald-900", text: "text-emerald-600 dark:text-emerald-400", hover: "hover:bg-emerald-200 dark:hover:bg-emerald-800" },
+      slate: { bg: "bg-slate-100 dark:bg-slate-900", text: "text-slate-600 dark:text-slate-400", hover: "hover:bg-slate-200 dark:hover:bg-slate-800" },
+    };
+
+    return colorMap[color] || colorMap.blue;
   };
 
+  // If we're on the main dashboard page with no specific view, show the module cards
+  if (location.pathname === '/dashboard' && !location.search) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center mb-8 opacity-0 animate-slide-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
+          <h1 className="text-3xl font-bold mb-2">Welcome to the Admin Dashboard</h1>
+          <p className="text-muted-foreground">Select a module to get started</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
+          {modules.map((module, index) => {
+            const colorClasses = getColorClasses(module.color);
+
+            return (
+              <Card
+                key={module.id}
+                className={`module-card w-full max-w-md cursor-pointer opacity-0 transform transition-all duration-300 hover:shadow-lg ${colorClasses.hover} card-hover-effect group`}
+                onClick={() => handleModuleClick(module.path)}
+                style={{ animationDelay: `${index * 0.1}s`, animationFillMode: 'forwards' }}
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-start space-x-4">
+                    <div className={`rounded-full p-3 ${colorClasses.bg} ${colorClasses.text} animate-float`}>
+                      {module.icon}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold mb-1">{module.name}</h3>
+                      <p className="text-muted-foreground text-sm">{module.description}</p>
+                    </div>
+                  </div>
+                  <div className={`mt-4 text-sm font-medium ${colorClasses.text} flex justify-end group-hover:translate-x-1 transition-transform duration-300`}>
+                    Explore {module.name} →
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // If we have a specific view parameter, render the appropriate content
   return (
     <div className="min-h-screen bg-background">
       <div className="flex">
@@ -172,159 +274,77 @@ function Home() {
           <div className="flex-1 overflow-auto py-2">
             <div className="px-3 py-2">
               <h3 className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-                General
+                Modules
               </h3>
               <div className="space-y-1 mt-2">
-                <Button
-                  variant={activeView === "dashboard" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("dashboard")}
-                >
-                  <HomeIcon className="mr-2 h-4 w-4" />
-                  Dashboard
-                </Button>
-                <Button
-                  variant={
-                    activeView === "conversations" ? "secondary" : "ghost"
-                  }
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("conversations")}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Conversations
-                </Button>
-                <Button
-                  variant={activeView === "analytics" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("analytics")}
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Analytics
-                </Button>
-              </div>
-            </div>
-            <div className="px-3 py-2">
-              <h3 className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">
-                Configuration
-              </h3>
-              <div className="space-y-1 mt-2">
-                <Button
-                  variant={activeView === "ai-config" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("ai-config")}
-                >
-                  <ServerCog className="mr-2 h-4 w-4" />
-                  AI Configuration
-                </Button>
-                <Button
-                  variant={
-                    activeView === "widget-builder" ? "secondary" : "ghost"
-                  }
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("widget-builder")}
-                >
-                  <Code className="mr-2 h-4 w-4" />
-                  Widget Builder
-                </Button>
-                <Button
-                  variant={
-                    activeView === "knowledge-base" ? "secondary" : "ghost"
-                  }
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("knowledge-base")}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Knowledge Base
-                </Button>
-                <Button
-                  variant={activeView === "embedding" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("embedding")}
-                >
-                  <Code className="mr-2 h-4 w-4" />
-                  Embedding
-                </Button>
-                <Button
-                  variant={
-                    activeView === "user-management" ? "secondary" : "ghost"
-                  }
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("user-management")}
-                >
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  User Management
-                </Button>
-                <Button
-                  variant={
-                    activeView === "integrations" ? "secondary" : "ghost"
-                  }
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("integrations")}
-                >
-                  <Webhook className="mr-2 h-4 w-4" />
-                  Integrations
-                </Button>
-                <Button
-                  variant={activeView === "api-tester" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => navigate("/api-tester")}
-                >
-                  <Code className="mr-2 h-4 w-4" />
-                  API Tester
-                </Button>
-                <Button
-                  variant={activeView === "settings" ? "secondary" : "ghost"}
-                  className="w-full justify-start"
-                  onClick={() => handleViewChange("settings")}
-                >
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start"
-                  onClick={() => navigate("/csrf-debug")}
-                >
-                  <ServerCog className="mr-2 h-4 w-4" />
-                  CSRF Debugger
-                </Button>
+                {modules.map((module) => (
+                  <button
+                    key={module.id}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm ${currentView === module.id ? 'bg-primary/10 text-primary font-medium' : 'text-muted-foreground hover:bg-muted'
+                      }`}
+                    onClick={() => handleModuleClick(module.path)}
+                  >
+                    {module.name}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
           <div className="p-4 border-t">
-            <div className="flex items-center">
-              <div className="ml-2 text-sm">
-                <p className="font-medium">Admin User</p>
-                <p className="text-xs text-muted-foreground">
-                  admin@example.com
-                </p>
+            <button
+              className="w-full text-left px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted"
+              onClick={() => navigate('/dashboard')}
+            >
+              ← Back to Dashboard
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Header */}
+        <div className="md:hidden border-b sticky top-0 bg-background z-10">
+          <div className="flex items-center justify-between p-4">
+            <h2 className="text-xl font-bold">AI Chat Admin</h2>
+            <div className="relative">
+              <select
+                className="appearance-none bg-transparent border rounded-md px-3 py-2 pr-8 text-sm"
+                value={currentView}
+                onChange={(e) => navigate(`/dashboard?view=${e.target.value}`)}
+              >
+                {modules.map(module => (
+                  <option key={module.id} value={module.id}>
+                    {module.name}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
             </div>
           </div>
         </div>
 
         {/* Main Content */}
-        <div className="flex-1">
-          {/* Mobile Header */}
-          <div className="md:hidden border-b sticky top-0 bg-background z-10">
-            <div className="flex items-center justify-between p-4">
-              <h2 className="text-xl font-bold">AI Chat Admin</h2>
-              <Button variant="outline" size="icon">
-                <MessageSquare className="h-5 w-5" />
-              </Button>
-            </div>
+        <div className="flex-1 p-6">
+          <div className="mb-6 flex items-center justify-between">
+            <button
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1 md:hidden"
+              onClick={() => navigate('/dashboard')}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              Back to Dashboard
+            </button>
+            <h1 className="text-2xl font-bold">{modules.find(m => m.id === currentView)?.name || 'Dashboard'}</h1>
+            <div className="w-20"></div> {/* Spacer for alignment */}
           </div>
-
-          {/* Content */}
-          <div
-            className={`p-6 ${isTransitioning ? "opacity-0" : "opacity-100"} transition-opacity duration-300`}
-          >
-            {renderContent()}
-          </div>
+          {renderContent()}
         </div>
       </div>
     </div>
   );
-}
+};
 
 export default Home;

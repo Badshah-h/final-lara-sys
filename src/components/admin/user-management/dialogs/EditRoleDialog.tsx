@@ -1,9 +1,7 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
 import {
   Dialog,
   DialogContent,
@@ -12,140 +10,199 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CategoryPermissionsGroup } from "../components/CategoryPermissionsGroup";
+import { PermissionCategory, Role } from "@/types";
+import { Loader2 } from "lucide-react";
 
-import { Role, EditedRole, PermissionCategory } from "../../../../types";
-import PermissionGroup from "../components/PermissionGroup";
-import { useRoles } from "@/hooks/access-control/useRoles";
+const formSchema = z.object({
+  name: z.string().min(1, "Name is required").max(100),
+  description: z.string().max(500).optional(),
+});
 
-interface EditRoleDialogProps {
+export interface EditRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   role: Role;
-  availablePermissions: PermissionCategory[];
-  onSuccess?: () => void;
-  canEdit?: boolean;
+  permissionCategories: PermissionCategory[];
+  onSave: (id: string, name: string, description: string, permissions: string[]) => Promise<boolean>;
+  isSubmitting?: boolean;
 }
 
 export function EditRoleDialog({
   open,
   onOpenChange,
   role,
-  availablePermissions,
-  onSuccess,
-  canEdit = true,
+  permissionCategories,
+  onSave,
+  isSubmitting = false,
 }: EditRoleDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [editedRole, setEditedRole] = useState<EditedRole>({
-    id: role.id,
-    name: role.name,
-    description: role.description || "",
-    permissions: Array.isArray(role.permissions) ? [...role.permissions] : [],
-  });
-  const { updateRole } = useRoles();
+  const [localSubmitting, setLocalSubmitting] = useState(false);
+  const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
+    Array.isArray(role.permissions) ? 
+      (typeof role.permissions[0] === 'string' ? 
+        role.permissions as string[] : 
+        (role.permissions as any).map((p: any) => p.id || p.name)
+      ) : []
+  );
+  const [activeTab, setActiveTab] = useState("details");
+  
+  // Use external isSubmitting state if provided
+  const isSaving = isSubmitting || localSubmitting;
 
-  const handleEditRole = async () => {
-    if (!canEdit) return;
-    setIsSubmitting(true);
-    setError(null);
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      name: role.name || "",
+      description: role.description || "",
+    },
+  });
+
+  const handleSave = async (values: z.infer<typeof formSchema>) => {
+    setLocalSubmitting(true);
     try {
-      await updateRole(editedRole.id, {
-        name: editedRole.name,
-        description: editedRole.description,
-        permissions: editedRole.permissions,
-      });
-      if (onSuccess) onSuccess();
-      onOpenChange(false);
-    } catch (err: any) {
-      setError(err?.message || "Failed to update role.");
+      const success = await onSave(
+        role.id,
+        values.name,
+        values.description || "",
+        selectedPermissions
+      );
+      if (success) {
+        onOpenChange(false);
+      }
     } finally {
-      setIsSubmitting(false);
+      setLocalSubmitting(false);
     }
   };
 
+  const handleTogglePermission = (permissionId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedPermissions([...selectedPermissions, permissionId]);
+    } else {
+      setSelectedPermissions(
+        selectedPermissions.filter((id) => id !== permissionId)
+      );
+    }
+  };
+
+  const isSystemRole = role.isSystem;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Role</DialogTitle>
           <DialogDescription>
-            Modify role details and permissions.
+            Update role details and permissions
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-hidden">
-          <div className="space-y-4 py-4 overflow-hidden flex flex-col h-full">
-            <div className="space-y-2">
-              <Label htmlFor="edit-role-name">Role Name</Label>
-              <Input
-                id="edit-role-name"
-                placeholder="e.g., Content Manager"
-                value={editedRole.name}
-                onChange={(e) =>
-                  setEditedRole({ ...editedRole, name: e.target.value })
-                }
-                disabled={!canEdit}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-role-description">Description</Label>
-              <Textarea
-                id="edit-role-description"
-                placeholder="Describe the purpose and responsibilities of this role"
-                value={editedRole.description}
-                onChange={(e) =>
-                  setEditedRole({
-                    ...editedRole,
-                    description: e.target.value,
-                  })
-                }
-                className="resize-none"
-                disabled={!canEdit}
-              />
-            </div>
-            <div className="space-y-2 flex-1 overflow-hidden">
-              <Label>Permissions</Label>
-              <div className="border rounded-md overflow-hidden flex-1">
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="p-4 space-y-6">
-                    {availablePermissions.map((category) => (
-                      <PermissionGroup
-                        key={category.category}
-                        category={category}
-                        selectedPermissions={editedRole.permissions}
-                        setStateFunction={setEditedRole}
-                        currentState={editedRole}
-                        idPrefix={`edit-${role.id}`}
-                      />
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-            </div>
-            {error && <div className="text-destructive text-sm mb-2">{error}</div>}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleEditRole}
-            disabled={isSubmitting || !editedRole.name.trim() || !canEdit}
-          >
-            {isSubmitting ? (
-              <>
-                <div className="h-4 w-4 mr-2 rounded-full border-2 border-t-transparent border-white animate-spin"></div>
-                Saving...
-              </>
-            ) : (
-              "Save Changes"
-            )}
-          </Button>
-        </DialogFooter>
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
+            <Tabs
+              defaultValue="details"
+              value={activeTab}
+              onValueChange={setActiveTab}
+            >
+              <TabsList>
+                <TabsTrigger value="details">Role Details</TabsTrigger>
+                <TabsTrigger value="permissions">Permissions</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-4 py-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Role name"
+                          {...field}
+                          disabled={isSystemRole}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        A clear name for this role
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Role description"
+                          {...field}
+                          value={field.value || ""}
+                          disabled={isSystemRole}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Describe the purpose of this role
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </TabsContent>
+
+              <TabsContent value="permissions" className="py-4">
+                <div className="space-y-6">
+                  {permissionCategories.map((category) => (
+                    <CategoryPermissionsGroup
+                      key={category.id}
+                      category={category.category}
+                      permissions={category.permissions}
+                      selectedPermissions={selectedPermissions}
+                      onTogglePermission={handleTogglePermission}
+                      disabled={isSystemRole}
+                    />
+                  ))}
+                </div>
+              </TabsContent>
+            </Tabs>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving || isSystemRole}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isSaving || isSystemRole}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                  </>
+                ) : (
+                  "Save Changes"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

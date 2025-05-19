@@ -28,11 +28,13 @@ export interface User {
 export interface Permission {
   id: string;
   name: string;
+  displayName?: string;
   description?: string;
   module?: string;
 }
 
 export interface PermissionCategory {
+  id: string;
   category: string;
   permissions: Permission[];
 }

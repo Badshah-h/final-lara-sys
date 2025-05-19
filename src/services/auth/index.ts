@@ -103,6 +103,11 @@ export const authService = {
     }
   },
 
+  // Alias for requestPasswordReset
+  requestPasswordReset: async (email: string) => {
+    return authService.forgotPassword(email);
+  },
+
   // Reset password
   resetPassword: async (
     email: string,

@@ -1,20 +1,19 @@
+
 import { useState } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Bot, Save, AlertCircle, RefreshCw, Plus } from "lucide-react";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAIModels } from "@/hooks/ai-configuration/useAIModels";
-import { AIModel } from "@/types/ai-configuration";
+import { AlertCircle, RefreshCw, Save } from "lucide-react";
 import { ModelCard } from "./ModelCard";
-import { RoutingRules } from "./RoutingRules";
 import { AddModelDialog } from "./AddModelDialog";
+import { RoutingRules } from "./RoutingRules";
+import { ModelCardSkeleton } from "./components/ModelCardSkeleton";
+import { EmptyModelsState } from "./components/EmptyModelsState";
+import { AddModelCard } from "./components/AddModelCard";
+import { useAIModels } from "./hooks/useAIModels";
+import { AIModel } from "@/types/ai-configuration";
 
 export interface AIModelManagerProps {
   onSave?: (models: AIModel[]) => void;
@@ -55,6 +54,7 @@ export const AIModelManager = ({
 
   return (
     <div className="space-y-6">
+      {/* HEADER */}
       {standalone && (
         <div className="flex items-center justify-between">
           <div>
@@ -93,6 +93,7 @@ export const AIModelManager = ({
         </div>
       )}
 
+      {/* ERROR */}
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -102,113 +103,41 @@ export const AIModelManager = ({
         </Alert>
       )}
 
+      {/* MODEL CARDS */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {isLoading ? (
-          // Loading placeholders
           Array(3)
             .fill(0)
-            .map((_, i) => (
-              <Card key={i} className="opacity-70">
-                <CardHeader>
-                  <div className="h-6 w-24 bg-muted rounded animate-pulse"></div>
-                  <div className="h-4 w-32 bg-muted rounded animate-pulse"></div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="h-4 w-16 bg-muted rounded animate-pulse"></div>
-                      <div className="h-9 bg-muted rounded animate-pulse"></div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-4 w-24 bg-muted rounded animate-pulse"></div>
-                      <div className="h-4 bg-muted rounded animate-pulse"></div>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="h-4 w-20 bg-muted rounded animate-pulse"></div>
-                      <div className="h-9 bg-muted rounded animate-pulse"></div>
-                    </div>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-between">
-                  <div className="h-9 w-16 bg-muted rounded animate-pulse"></div>
-                  <div className="h-9 w-16 bg-muted rounded animate-pulse"></div>
-                </CardFooter>
-              </Card>
-            ))
+            .map((_, i) => <ModelCardSkeleton key={i} />)
         ) : models && models.length > 0 ? (
-          // Actual model cards
-          models.map((model) => (
-            <ModelCard
-              key={model.id}
-              model={model}
-              onUpdate={updateModel}
-              isUpdating={isSaving}
-            />
-          ))
+          <>
+            {models.map((model) => (
+              <ModelCard
+                key={model.id}
+                model={model}
+                onUpdate={async (id, updates) => updateModel(updates)}
+                isUpdating={isSaving}
+              />
+            ))}
+            <AddModelCard onAddModel={() => setShowAddModelDialog(true)} />
+          </>
         ) : (
-          // Empty state
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Bot className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium mb-2">
-                No AI Models Configured
-              </h3>
-              <p className="text-muted-foreground text-center mb-6">
-                You haven't added any AI models yet. Add your first model to get
-                started with AI-powered chat.
-              </p>
-              <Button onClick={() => setShowAddModelDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Add Your First Model
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Add Model Card */}
-        {models && models.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Bot className="mr-2 h-5 w-5 text-muted-foreground" /> Add
-                  Model
-                </CardTitle>
-              </div>
-              <CardDescription>Configure a new AI model</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[220px] flex items-center justify-center border-2 border-dashed rounded-md">
-                <div className="text-center">
-                  <Bot className="h-10 w-10 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-muted-foreground">
-                    Click to add a new AI model
-                  </p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={() => setShowAddModelDialog(true)}
-                  >
-                    <Plus className="mr-2 h-4 w-4" /> Add Model
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <EmptyModelsState onAddModel={() => setShowAddModelDialog(true)} />
         )}
       </div>
 
-      {/* Routing Rules */}
+      {/* ROUTING RULES */}
       {models && models.length > 0 && (
         <RoutingRules
           models={models}
           rules={routingRules}
-          onAddRule={addRoutingRule}
-          onUpdateRules={updateRoutingRules}
+          onAddRule={(rule) => addRoutingRule(rule)}
+          onUpdateRules={(rules) => updateRoutingRules(rules)}
           onDeleteRule={deleteRoutingRule}
         />
       )}
 
-      {/* Add Model Dialog */}
+      {/* ADD MODEL DIALOG */}
       <AddModelDialog
         open={showAddModelDialog}
         onOpenChange={setShowAddModelDialog}

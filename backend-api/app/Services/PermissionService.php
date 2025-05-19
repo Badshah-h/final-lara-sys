@@ -2,59 +2,44 @@
 
 namespace App\Services;
 
-use App\Repositories\PermissionRepository;
+use Spatie\Permission\Models\Permission;
 
 class PermissionService
 {
-    protected $permissionRepository;
-
     /**
-     * Create a new service instance.
+     * Get all permissions
      *
-     * @param PermissionRepository $permissionRepository
+     * @return \Illuminate\Database\Eloquent\Collection
      */
-    public function __construct(PermissionRepository $permissionRepository)
+    public function getAllPermissions()
     {
-        $this->permissionRepository = $permissionRepository;
+        return Permission::all();
     }
 
     /**
-     * Get all permissions grouped by category.
+     * Get permissions grouped by category
      *
-     * @return array
+     * @return \Illuminate\Support\Collection
      */
-    public function getAllPermissions(): array
+    public function getPermissionsByCategory()
     {
-        $permissions = $this->permissionRepository->all();
-        $groupedPermissions = [];
-        
-        foreach ($permissions as $permission) {
-            $category = $permission->category ?? 'General';
-            
-            if (!isset($groupedPermissions[$category])) {
-                $groupedPermissions[$category] = [
-                    'category' => $category,
-                    'permissions' => [],
-                ];
+        $permissions = Permission::all();
+
+        // Group permissions by category
+        return $permissions->groupBy(function ($permission) {
+            // Extract category from permission name
+            // Format: 'create users' -> category is 'users'
+            // Format: 'view dashboard' -> category is 'dashboard'
+            $parts = explode(' ', $permission->name);
+            if (count($parts) > 1) {
+                return ucfirst($parts[1]); // Get second part and capitalize
             }
-            
-            $groupedPermissions[$category]['permissions'][] = [
-                'id' => $permission->name,
-                'name' => $this->formatPermissionName($permission->name),
+            return 'General';
+        })->map(function ($permissions, $category) {
+            return [
+                'category' => $category,
+                'permissions' => $permissions->values(),
             ];
-        }
-        
-        return array_values($groupedPermissions);
-    }
-    
-    /**
-     * Format permission name for display.
-     *
-     * @param string $name
-     * @return string
-     */
-    private function formatPermissionName(string $name): string
-    {
-        return ucfirst(str_replace('_', ' ', $name));
+        })->values();
     }
 }

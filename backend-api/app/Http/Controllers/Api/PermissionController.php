@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\Controller;
 use App\Services\PermissionService;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
-class PermissionController extends BaseApiController
+class PermissionController extends Controller
 {
     protected $permissionService;
 
@@ -20,13 +21,26 @@ class PermissionController extends BaseApiController
     }
 
     /**
-     * Display a listing of permissions grouped by category.
+     * Display a listing of all permissions.
      *
-     * @return JsonResponse
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function index(): JsonResponse
+    public function index()
     {
         $permissions = $this->permissionService->getAllPermissions();
-        return $this->successResponse($permissions);
+
+        return response()->json($permissions);
+    }
+
+    /**
+     * Get permissions grouped by category.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getByCategory()
+    {
+        $permissionsByCategory = $this->permissionService->getPermissionsByCategory();
+
+        return response()->json($permissionsByCategory);
     }
 }

@@ -21,7 +21,7 @@ const ForgotPasswordPage = () => {
     setError("");
 
     try {
-      await authService.forgotPassword({ email });
+      await authService.requestPasswordReset(email);
       setIsSubmitted(true);
     } catch (err) {
       if (err instanceof ApiError) {

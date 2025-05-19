@@ -1,71 +1,136 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\API;
 
-use App\Services\ActivityLogService;
-use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Response;
 
-class ActivityLogController extends BaseApiController
+class ActivityLogController extends Controller
 {
-    protected $activityLogService;
-
-    /**
-     * Create a new controller instance.
-     *
-     * @param ActivityLogService $activityLogService
-     */
-    public function __construct(ActivityLogService $activityLogService)
-    {
-        $this->activityLogService = $activityLogService;
-    }
-
     /**
      * Display a listing of activity logs.
      *
-     * @param Request $request
-     * @return JsonResponse
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
-        $result = $this->activityLogService->getAllActivityLogs($request->all());
-        return $this->paginatedResponse($result['data'], $result['meta']);
+        $query = ActivityLog::with('user')->latest();
+
+        // Filter by user if provided
+        if ($request->has('user_id')) {
+            $query->where('user_id', $request->user_id);
+        }
+
+        // Filter by action type if provided
+        if ($request->has('action_type')) {
+            $query->where('action', $request->action_type);
+        }
+
+        // Filter by date range if provided
+        if ($request->has('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        // Search in description if provided
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('action', 'like', "%{$search}%");
+            });
+        }
+
+        // Get paginated results
+        $activityLogs = $query->paginate($request->per_page ?? 15);
+
+        return response()->json($activityLogs);
     }
 
     /**
-     * Display the specified activity log.
+     * Get all distinct action types for filtering.
      *
-     * @param int $id
-     * @return JsonResponse
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function show(int $id): JsonResponse
+    public function getActionTypes()
     {
-        $activityLog = $this->activityLogService->getActivityLogById($id);
-        return $this->successResponse($activityLog);
+        $types = ActivityLog::distinct()->pluck('action')->toArray();
+        return response()->json($types);
     }
 
     /**
-     * Export activity logs.
+     * Export activity logs to CSV.
      *
-     * @param Request $request
-     * @return BinaryFileResponse|JsonResponse
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
      */
     public function export(Request $request)
     {
-        $request->validate([
-            'format' => 'required|in:csv,json',
-        ]);
+        $query = ActivityLog::with('user')->latest();
 
-        $result = $this->activityLogService->exportActivityLogs(
-            $request->format,
-            $request->except('format')
-        );
-
-        if (!$result['success']) {
-            return $this->errorResponse($result['message']);
+        // Apply the same filters as in index method
+        if ($request->has('user_id')) {
+            $query->where('user_id', $request->user_id);
         }
 
-        return $result['file'];
+        if ($request->has('action_type')) {
+            $query->where('action', $request->action_type);
+        }
+
+        if ($request->has('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+
+        if ($request->has('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('action', 'like', "%{$search}%");
+            });
+        }
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="activity-logs.csv"',
+            'Cache-Control' => 'max-age=0'
+        ];
+
+        $activityLogs = $query->get();
+
+        $columns = ['ID', 'User', 'Action', 'Description', 'IP Address', 'User Agent', 'Time'];
+
+        $callback = function() use ($activityLogs, $columns) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+
+            foreach ($activityLogs as $log) {
+                $row = [
+                    $log->id,
+                    $log->user ? $log->user->name : 'Unknown User',
+                    $log->action,
+                    $log->description,
+                    $log->ip_address,
+                    $log->user_agent,
+                    $log->created_at->toDateTimeString()
+                ];
+
+                fputcsv($file, $row);
+            }
+
+            fclose($file);
+        };
+
+        return Response::stream($callback, 200, $headers);
     }
 }

@@ -19,8 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { userService } from "@/services/user-management/userService";
-import { Eye, EyeOff } from "lucide-react";
 
 import { NewUser } from "../../../../types";
 
@@ -40,50 +38,19 @@ export function AddUserDialog({
     name: "",
     email: "",
     role: "user",
-    password: "",
   });
   const [sendEmail, setSendEmail] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const handleAddUser = async () => {
+  const handleAddUser = () => {
     setIsSubmitting(true);
-    setError(null);
-    try {
-      // Generate a random password if not provided and send_email is true
-      const password = newUser.password || (sendEmail ? generateRandomPassword() : '');
-
-      if (!password && !sendEmail) {
-        setError("Password is required when not sending a welcome email.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      await userService.createUser({
-        name: newUser.name,
-        email: newUser.email,
-        role: newUser.role,
-        password: password,
-        send_email: sendEmail,
-      });
+    // Simulate API call
+    setTimeout(() => {
+      // In a real implementation, this would add the user to the database
       onOpenChange(false);
-      setNewUser({ name: "", email: "", role: "user", password: "" });
-    } catch (err: any) {
-      setError(err?.message || "Failed to add user.");
-    } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  // Generate a random secure password
-  const generateRandomPassword = () => {
-    const length = 12;
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-    let password = "";
-    for (let i = 0; i < length; i++) {
-      password += charset.charAt(Math.floor(Math.random() * charset.length));
-    }
-    return password;
+      // Reset form
+      setNewUser({ name: "", email: "", role: "user" });
+    }, 1000);
   };
 
   return (
@@ -144,37 +111,6 @@ export function AddUserDialog({
               Send welcome email with password setup link
             </Label>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <Label htmlFor="password">
-                Password {!sendEmail && <span className="text-destructive">*</span>}
-              </Label>
-              {sendEmail && (
-                <span className="text-xs text-muted-foreground">
-                  Optional - will be generated if empty
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <Input
-                id="password"
-                type={showPassword ? "text" : "password"}
-                placeholder={sendEmail ? "Optional - will be generated" : "Enter password"}
-                value={newUser.password || ""}
-                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                required={!sendEmail}
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                onClick={() => setShowPassword((v) => !v)}
-                tabIndex={-1}
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-          {error && <div className="text-destructive text-sm mb-2">{error}</div>}
         </div>
         <DialogFooter>
           <Button
@@ -186,12 +122,7 @@ export function AddUserDialog({
           </Button>
           <Button
             onClick={handleAddUser}
-            disabled={
-              isSubmitting ||
-              !newUser.name ||
-              !newUser.email ||
-              (!sendEmail && !newUser.password)
-            }
+            disabled={isSubmitting || !newUser.name || !newUser.email}
           >
             {isSubmitting ? (
               <>

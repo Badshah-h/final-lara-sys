@@ -21,7 +21,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
 import {
   Database,
   FileText,
@@ -35,6 +34,7 @@ import {
   FileUp,
   Save,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const KnowledgeBase = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -346,7 +346,7 @@ const KnowledgeBase = () => {
                           </p>
                         </div>
                         <div>
-                          <Switch id="include-ai" checked />
+                          <Switch checked={true} />
                         </div>
                       </div>
                       <Separator />

@@ -5,5 +5,8 @@
  * including roles and permissions management.
  */
 
-export * from "../user-management/useRoles";
-export * from "../user-management/usePermissions";
+export * from "./useRoles";
+export * from "./usePermissions";
+export * from "./usePermissionFilter";
+export * from "./useRoleManagement";
+export * from "./usePermissionManagement";

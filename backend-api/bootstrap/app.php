@@ -11,6 +11,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Register global middleware
+        $middleware->append(\App\Http\Middleware\Cors::class);
         // Define the 'web' middleware group
         $middleware->group('web', [
             \App\Http\Middleware\EncryptCookies::class,
@@ -23,8 +25,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         // Define the 'api' middleware group
         $middleware->group('api', [
-            // \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class, // Uncomment if needed
-            // 'throttle:api', // Uncomment if you define a rate limiter
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+            \Illuminate\Session\Middleware\StartSession::class,
             \Illuminate\Routing\Middleware\SubstituteBindings::class,
         ]);
         // Register middleware aliases

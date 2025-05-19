@@ -1,17 +1,19 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Api\BaseApiController;
-use App\Http\Requests\Auth\ForgotPasswordRequest;
-use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\RegisterRequest;
-use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\ActivityLogService;
 use App\Services\AuthService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules;
 
-class AuthController extends BaseApiController
+class AuthController extends Controller
 {
     protected $authService;
 
@@ -26,104 +28,224 @@ class AuthController extends BaseApiController
     }
 
     /**
-     * Login user and create token
+     * Login a user
      *
-     * @param LoginRequest $request
-     * @return JsonResponse
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function login(LoginRequest $request): JsonResponse
+    public function login(Request $request)
     {
-        $result = $this->authService->login($request->validated());
+        try {
+            // Log the request for debugging
+            \Illuminate\Support\Facades\Log::info('Login attempt', [
+                'email' => $request->input('email'),
+                'remember' => $request->boolean('remember'),
+                'headers' => $request->headers->all(),
+                'ip' => $request->ip(),
+                'csrf_token' => $request->header('X-XSRF-TOKEN'),
+                'session_id' => $request->session()->getId(),
+                'has_session' => $request->hasSession(),
+            ]);
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 422, $result['errors'] ?? []);
+            $validated = $request->validate([
+                'email' => ['required', 'string', 'email'],
+                'password' => ['required', 'string'],
+                // Remove 'remember' from validation as it's handled separately
+            ]);
+
+            // Get the remember flag but don't include it in the credentials
+            $remember = $request->boolean('remember');
+
+            // Only pass email and password to Auth::attempt
+            $credentials = [
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+            ];
+
+            if (!Auth::attempt($credentials, $remember)) {
+                \Illuminate\Support\Facades\Log::warning('Login failed: Invalid credentials', [
+                    'email' => $request->input('email'),
+                    'ip' => $request->ip(),
+                ]);
+
+                return response()->json([
+                    'message' => 'Invalid login credentials'
+                ], 401);
+            }
+
+            $user = Auth::user();
+            $user->update(['last_active' => now()]);
+
+            // Log user login activity
+            ActivityLogService::logLogin($user);
+
+            \Illuminate\Support\Facades\Log::info('Login successful', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+            ]);
+
+            return response()->json([
+                'user' => $user->load('roles', 'permissions'),
+                'token' => $user->createToken('auth_token')->plainTextToken,
+            ]);
+        } catch (\Exception $e) {
+            // Log the exception
+            \Illuminate\Support\Facades\Log::error('Login exception', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            // Return a more user-friendly error response
+            return response()->json([
+                'success' => false,
+                'message' => 'Login failed: ' . $e->getMessage(),
+                'error' => $e->getMessage(),
+                'error_type' => get_class($e),
+            ], 500);
         }
-
-        return $this->successResponse($result['data'], $result['message']);
     }
 
     /**
      * Register a new user
      *
-     * @param RegisterRequest $request
-     * @return JsonResponse
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function register(RegisterRequest $request): JsonResponse
+    public function register(Request $request)
     {
-        $result = $this->authService->register($request->validated());
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 422, $result['errors'] ?? []);
-        }
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'status' => 'active',
+            'last_active' => now(),
+        ]);
 
-        return $this->successResponse($result['data'], $result['message'], 201);
+        // Assign default role
+        $user->assignRole('user');
+
+        // Log user registration activity
+        ActivityLogService::logRegistration($user);
+
+        Auth::login($user);
+
+        return response()->json([
+            'message' => 'User registered successfully',
+            'user' => $user->load('roles', 'permissions'),
+            'token' => $user->createToken('auth_token')->plainTextToken,
+        ], 201);
     }
 
     /**
-     * Get the authenticated user
+     * Logout a user
      *
-     * @param Request $request
-     * @return JsonResponse
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function user(Request $request): JsonResponse
+    public function logout(Request $request)
     {
-        $result = $this->authService->getAuthenticatedUser();
+        $user = Auth::user();
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 401, $result['errors'] ?? []);
+        // Log user logout activity
+        if ($user) {
+            ActivityLogService::logLogout($user);
         }
 
-        return $this->successResponse($result['data'], $result['message']);
+        if ($user) {
+            $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
+        }
+
+        return response()->json([
+            'message' => 'Logged out successfully'
+        ]);
     }
 
     /**
-     * Logout user (Revoke the token)
+     * Get authenticated user
      *
-     * @param Request $request
-     * @return JsonResponse
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function logout(Request $request): JsonResponse
+    public function user(Request $request)
     {
-        $result = $this->authService->logout();
+        $user = $request->user();
+        $user->update(['last_active' => now()]);
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 401, $result['errors'] ?? []);
+        // Load roles and permissions
+        $user->load('roles');
+        $userData = $user->toArray();
+
+        // Get permissions - handle both array and collection return types
+        $permissions = $user->getAllPermissions();
+        if (is_array($permissions)) {
+            // If getAllPermissions returns an array, use it directly
+            $userData['permissions'] = $permissions;
+        } else {
+            // If getAllPermissions returns a collection, use pluck
+            $userData['permissions'] = $permissions->pluck('name')->toArray();
         }
 
-        return $this->successResponse(null, $result['message']);
+        return response()->json($userData);
     }
 
     /**
      * Send password reset link
      *
-     * @param ForgotPasswordRequest $request
-     * @return JsonResponse
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    public function sendPasswordResetLink(Request $request)
     {
-        $result = $this->authService->sendPasswordResetLink($request->validated());
+        $request->validate([
+            'email' => ['required', 'email'],
+        ]);
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 422, $result['errors'] ?? []);
-        }
+        $status = Password::sendResetLink(
+            $request->only('email')
+        );
 
-        return $this->successResponse(null, $result['message']);
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json(['message' => __($status)])
+            : response()->json(['email' => __($status)], 400);
     }
 
     /**
      * Reset password
      *
-     * @param ResetPasswordRequest $request
-     * @return JsonResponse
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    public function resetPassword(Request $request)
     {
-        $result = $this->authService->resetPassword($request->validated());
+        $request->validate([
+            'token' => ['required'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        ]);
 
-        if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['code'] ?? 400, $result['errors'] ?? []);
-        }
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
 
-        return $this->successResponse(null, $result['message']);
+                // Log password reset
+                ActivityLogService::log('Password Reset', 'User reset their password', $user);
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? response()->json(['message' => __($status)])
+            : response()->json(['email' => __($status)], 400);
     }
 }

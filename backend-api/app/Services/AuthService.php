@@ -12,194 +12,145 @@ use Illuminate\Support\Str;
 class AuthService
 {
     /**
-     * Login user and create token
+     * Authenticate a user and generate token
      *
-     * @param array $data
+     * @param array $credentials
+     * @param bool $remember
      * @return array
      */
-    public function login(array $data): array
+    public function login(array $credentials, bool $remember = false): array
     {
-        $credentials = [
-            'email' => $data['email'],
-            'password' => $data['password']
+        // Make sure we only pass email and password to Auth::attempt
+        $authCredentials = [
+            'email' => $credentials['email'],
+            'password' => $credentials['password'],
         ];
 
-        if (!Auth::attempt($credentials)) {
-            return [
-                'success' => false,
-                'message' => 'Invalid email or password.',
-                'code' => 422
-            ];
+        if (!Auth::attempt($authCredentials, $remember)) {
+            throw new \Exception('The provided credentials are incorrect.');
         }
 
         $user = Auth::user();
-
-        // Check if user is active
-        if ($user->is_active !== true) {
-            Auth::logout();
-            return [
-                'success' => false,
-                'message' => 'Your account is not active. Please contact the administrator.',
-                'code' => 403
-            ];
-        }
 
         // Update last active timestamp
         $user->last_active = now();
         $user->save();
 
-        // Create token
-        $token = $user->createToken('auth_token')->plainTextToken;
+        // Get roles and permissions
+        $roles = $user->roles->pluck('name');
+        $permissions = $user->getAllPermissions()->pluck('name');
+
+        // Create token with abilities based on permissions
+        $token = $user->createToken('auth-token', $permissions->toArray())->plainTextToken;
 
         return [
-            'success' => true,
-            'message' => 'User logged in successfully',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer'
-            ]
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'status' => $user->status,
+                'avatar_url' => $user->avatar_url,
+                'last_active' => $user->last_active,
+                'roles' => $roles,
+                'permissions' => $permissions,
+            ],
+            'token' => $token,
         ];
     }
 
     /**
      * Register a new user
      *
-     * @param array $data
+     * @param array $userData
      * @return array
      */
-    public function register(array $data): array
+    public function register(array $userData): array
     {
-        // Check if email already exists
-        if (User::where('email', $data['email'])->exists()) {
-            return [
-                'success' => false,
-                'message' => 'Email already exists',
-                'code' => 422
-            ];
-        }
-
         // Create user
         $user = User::create([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'password' => Hash::make($data['password']),
-            'is_active' => true, // Default status
+            'name' => $userData['name'],
+            'email' => $userData['email'],
+            'password' => Hash::make($userData['password']),
+            'status' => 'active',
+            'last_active' => now(),
         ]);
 
-        // Assign default role if specified
-        if (isset($data['role']) && !empty($data['role'])) {
-            $user->assignRole($data['role']);
-        } else {
-            $user->assignRole('user');
-        }
+        // Assign default role
+        $user->assignRole('user');
 
         // Create token
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $user->createToken('auth-token')->plainTextToken;
 
         return [
-            'success' => true,
             'message' => 'User registered successfully',
-            'data' => [
-                'user' => $user,
-                'token' => $token,
-                'token_type' => 'Bearer'
-            ]
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'status' => $user->status,
+            ],
+            'token' => $token,
         ];
     }
 
     /**
-     * Get the authenticated user
+     * Get authenticated user data
      *
+     * @param User $user
      * @return array
      */
-    public function getAuthenticatedUser(): array
+    public function getUserData(User $user): array
     {
-        if (!Auth::check()) {
-            return [
-                'success' => false,
-                'message' => 'Unauthenticated',
-                'code' => 401
-            ];
-        }
-
-        $user = Auth::user();
-        $user->load('roles.permissions');
-
-        // Get all permissions from user's roles
-        $permissions = $user->getAllPermissions()->pluck('name');
+        // Update last active timestamp
+        $user->last_active = now();
+        $user->save();
 
         return [
-            'success' => true,
-            'message' => 'User retrieved successfully',
-            'data' => [
-                'user' => $user,
-                'permissions' => $permissions
-            ]
-        ];
-    }
-
-    /**
-     * Logout user (Revoke the token)
-     *
-     * @return array
-     */
-    public function logout(): array
-    {
-        if (!Auth::check()) {
-            return [
-                'success' => false,
-                'message' => 'Unauthenticated',
-                'code' => 401
-            ];
-        }
-
-        // Revoke all tokens
-        Auth::user()->tokens()->delete();
-
-        return [
-            'success' => true,
-            'message' => 'User logged out successfully'
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'status' => $user->status,
+                'avatar_url' => $user->avatar_url,
+                'last_active' => $user->last_active,
+                'roles' => $user->roles->pluck('name'),
+                'permissions' => $user->getAllPermissions()->pluck('name'),
+            ],
         ];
     }
 
     /**
      * Send password reset link
      *
-     * @param array $data
-     * @return array
+     * @param string $email
+     * @return string Status message
      */
-    public function sendPasswordResetLink(array $data): array
+    public function sendPasswordResetLink(string $email): string
     {
-        $status = Password::sendResetLink(['email' => $data['email']]);
+        $status = Password::sendResetLink(['email' => $email]);
 
         if ($status !== Password::RESET_LINK_SENT) {
-            return [
-                'success' => false,
-                'message' => __($status),
-                'code' => 400
-            ];
+            throw new \Exception(__($status));
         }
 
-        return [
-            'success' => true,
-            'message' => __($status)
-        ];
+        return __($status);
     }
 
     /**
-     * Reset password
+     * Reset user password
      *
      * @param array $data
-     * @return array
+     * @return string Status message
      */
-    public function resetPassword(array $data): array
+    public function resetPassword(array $data): string
     {
         $status = Password::reset(
             $data,
-            function ($user, $password) {
-                $user->password = Hash::make($password);
-                $user->setRememberToken(Str::random(60));
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                ])->setRememberToken(Str::random(60));
+
                 $user->save();
 
                 event(new PasswordReset($user));
@@ -207,16 +158,20 @@ class AuthService
         );
 
         if ($status !== Password::PASSWORD_RESET) {
-            return [
-                'success' => false,
-                'message' => __($status),
-                'code' => 400
-            ];
+            throw new \Exception(__($status));
         }
 
-        return [
-            'success' => true,
-            'message' => __($status)
-        ];
+        return __($status);
+    }
+
+    /**
+     * Logout by removing the current token
+     *
+     * @param User $user
+     * @return void
+     */
+    public function logout(User $user): void
+    {
+        $user->currentAccessToken()->delete();
     }
 }

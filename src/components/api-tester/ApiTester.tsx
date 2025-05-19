@@ -30,9 +30,9 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { JsonViewer } from "@/components/ui/json-viewer";
-import { getAllEndpoints } from "@/services/api/registry";
-import { apiService } from "@/services/api/base";
-import { API_BASE_URL } from "@/services/api/config";
+import { getAllEndpoints } from "@/services/api-tester/registry";
+import apiTester from "@/services/api-tester/base";
+import { API_BASE_URL } from "@/services/api-tester/config";
 import { tokenService } from "@/services/auth/tokenService";
 import {
   Check,
@@ -686,7 +686,7 @@ const ApiTester = () => {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-2">
-                          {endpoints.map((endpoint) => (
+                          {Array.isArray(endpoints) && endpoints.map((endpoint) => (
                             <div
                               key={`${endpoint.category}-${endpoint.endpoint}`}
                               className="flex items-center justify-between p-2 rounded-md hover:bg-muted cursor-pointer"
@@ -702,7 +702,7 @@ const ApiTester = () => {
                                         : endpoint.definition.method === "PUT"
                                           ? "outline"
                                           : endpoint.definition.method ===
-                                              "DELETE"
+                                            "DELETE"
                                             ? "destructive"
                                             : "outline"
                                   }
@@ -979,7 +979,7 @@ const ApiTester = () => {
                           onValueChange={(value) => {
                             const templates =
                               EXAMPLE_TEMPLATES[
-                                request.contentType as keyof typeof EXAMPLE_TEMPLATES
+                              request.contentType as keyof typeof EXAMPLE_TEMPLATES
                               ] || [];
                             const template = templates.find(
                               (t) => t.name === value,
@@ -995,7 +995,7 @@ const ApiTester = () => {
                           <SelectContent>
                             {(
                               EXAMPLE_TEMPLATES[
-                                request.contentType as keyof typeof EXAMPLE_TEMPLATES
+                              request.contentType as keyof typeof EXAMPLE_TEMPLATES
                               ] || []
                             ).map((template, index) => (
                               <SelectItem key={index} value={template.name}>

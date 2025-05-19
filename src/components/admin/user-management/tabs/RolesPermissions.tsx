@@ -1,298 +1,199 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Plus, Loader2, AlertCircle, RefreshCw } from "lucide-react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
-import RoleCard from "../components/RoleCard";
-import PermissionManagement from "./PermissionManagement";
-import { CreateRoleDialog } from "../dialogs/CreateRoleDialog";
-import { EditRoleDialog } from "../dialogs/EditRoleDialog";
-import { DeleteRoleDialog } from "../dialogs/DeleteRoleDialog";
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PlusCircle, Loader2 } from "lucide-react";
+import { useRoleManagement } from "@/hooks/access-control/useRoleManagement";
+import { usePermissionManagement } from "@/hooks/access-control/usePermissionManagement";
 import { Role } from "@/types";
-import { useRoles } from "@/hooks/access-control/useRoles";
-import { usePermissions } from "@/hooks/access-control/usePermissions";
-import { useAuth } from "@/contexts/AuthContext";
+import { CreateRoleDialog, DeleteRoleDialog, EditRoleDialog } from "../dialogs";
+import RoleCard from "../components/RoleCard.js";
 
 const RolesPermissions = () => {
+  const [activeTab, setActiveTab] = useState("roles");
   const [showCreateRoleDialog, setShowCreateRoleDialog] = useState(false);
   const [showEditRoleDialog, setShowEditRoleDialog] = useState(false);
   const [showDeleteRoleDialog, setShowDeleteRoleDialog] = useState(false);
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [activeRoleTab, setActiveRoleTab] = useState("");
-  const [updatedPermissions, setUpdatedPermissions] = useState<Record<string, string[]>>({});
-  const [isSaving, setIsSaving] = useState(false);
 
-  // Get roles data from API
+  // Get roles data
   const {
     roles,
-    isLoadingRoles,
-    rolesError,
-    fetchRoles: refreshRoles,
-  } = useRoles();
+    isLoadingRoles, // Correctly use isLoadingRoles from the hook
+    rolesError, // Correctly use rolesError from the hook
+    fetchRoles, // Use fetchRoles as the refresh function
+    createRole,
+    updateRole,
+    deleteRole
+  } = useRoleManagement();
 
-  // Get permissions data from API
+  // Get permission categories
   const {
     permissionCategories,
-    isLoadingPermissions,
-    permissionsError,
-    fetchPermissions: refreshPermissions,
-    updateRolePermissions,
-    isUpdatingPermissions,
-  } = usePermissions();
+    isLoadingPermissions
+  } = usePermissionManagement();
 
-  // Commented out permission checks to make all functionality accessible
-  // const { hasPermission } = useAuth();
+  // Use isLoading to combine both loading states
+  const isLoading = isLoadingRoles || isLoadingPermissions;
+  // Handle error state
+  const error = rolesError;
 
-  // Make all role management functions accessible to any logged-in user
-  // const canCreateRoles = hasPermission("create_roles");
-  // const canEditRoles = hasPermission("edit_roles");
-  // const canDeleteRoles = hasPermission("delete_roles");
-  // const canManagePermissions = hasPermission("manage_permissions");
-
-  // const hasManageRolesPermission = hasPermission("manage_roles");
-  const effectiveCanCreateRoles = true; // canCreateRoles || hasManageRolesPermission;
-  const effectiveCanEditRoles = true; // canEditRoles || hasManageRolesPermission;
-  const effectiveCanDeleteRoles = true; // canDeleteRoles || hasManageRolesPermission;
-  const effectiveCanManagePermissions = true; // canManagePermissions || hasManageRolesPermission;
+  // Load roles on component mount
+  useEffect(() => {
+    fetchRoles();
+  }, [fetchRoles]);
 
   const handleEditRole = (role: Role) => {
-    if (!effectiveCanEditRoles) return;
     setSelectedRole(role);
     setShowEditRoleDialog(true);
   };
 
   const handleDeleteRole = (role: Role) => {
-    if (!effectiveCanDeleteRoles) return;
     setSelectedRole(role);
     setShowDeleteRoleDialog(true);
   };
 
-  const handleCreateRoleSuccess = () => {
-    setShowCreateRoleDialog(false);
-    refreshRoles();
-  };
-
-  const handleEditRoleSuccess = () => {
-    setShowEditRoleDialog(false);
-    refreshRoles();
-  };
-
-  const handleDeleteRoleSuccess = () => {
-    setShowDeleteRoleDialog(false);
-    refreshRoles();
-  };
-
-  // Set initial active tab when roles are loaded
-  useEffect(() => {
-    if (roles && roles.length > 0 && !activeRoleTab) {
-      setActiveRoleTab(roles[0].id);
-    }
-  }, [roles, activeRoleTab]);
-
-  // Handle permission changes for a specific role
-  const handlePermissionsChange = async (roleId: string, permissions: string[]) => {
+  const handleCreateRole = async (
+    name: string,
+    description: string,
+    permissions: string[]
+  ) => {
     try {
-      setIsSaving(true);
-      // Save the permissions to the server
-      await updateRolePermissions(roleId, { permissions });
-      
-      // Update the role in the local state to reflect the changes
-      const updatedRoles = roles.map(role => {
-        if (role.id === roleId) {
-          return { ...role, permissions };
-        }
-        return role;
-      });
-      
-      // No need to use setUpdatedPermissions as the PermissionManagement component
-      // now handles its own state and saving
+      await createRole(name, description, permissions);
+      return true;
     } catch (error) {
-      console.error("Error saving permissions:", error);
-    } finally {
-      setIsSaving(false);
+      return false;
+    }
+  };
+
+  const handleUpdateRole = async (
+    id: string,
+    name: string,
+    description: string,
+    permissions: string[]
+  ) => {
+    try {
+      await updateRole(id, name, description, permissions);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const handleDeleteRoleConfirm = async (id: string) => {
+    try {
+      await deleteRole(id);
+      return true;
+    } catch (error) {
+      return false;
     }
   };
 
   return (
-    <>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <CardTitle>Roles</CardTitle>
-              <CardDescription>
-                Manage user roles and their descriptions
-              </CardDescription>
-            </div>
-            {effectiveCanCreateRoles && (
-              <Button onClick={() => setShowCreateRoleDialog(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                Create New Role
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          {rolesError && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {rolesError.message || "Failed to load roles"}
-              </AlertDescription>
-            </Alert>
-          )}
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <div>
+          <h2 className="text-2xl font-bold">Roles & Permissions</h2>
+          <p className="text-muted-foreground">
+            Manage roles and their permissions
+          </p>
+        </div>
+        <Button onClick={() => setShowCreateRoleDialog(true)}>
+          <PlusCircle className="w-4 h-4 mr-2" />
+          Create Role
+        </Button>
+      </div>
 
-          {isLoadingRoles ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-sm text-muted-foreground">Loading roles...</p>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="roles">Roles</TabsTrigger>
+          <TabsTrigger value="permissions">Permissions</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="roles" className="space-y-4">
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <span className="ml-2">Loading roles...</span>
             </div>
           ) : roles && roles.length > 0 ? (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {roles.map((role) => (
                 <RoleCard
                   key={role.id}
                   role={role}
-                  onEdit={handleEditRole}
-                  onDelete={handleDeleteRole}
-                  canEdit={effectiveCanEditRoles}
-                  canDelete={effectiveCanDeleteRoles}
+                  onEdit={() => handleEditRole(role)}
+                  onDelete={() => handleDeleteRole(role)}
                 />
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground border rounded-md">
-              <p>No roles found. Create your first role to get started.</p>
+            <div className="text-center py-8 text-muted-foreground">
+              No roles found. Create your first role to get started.
             </div>
           )}
-        </CardContent>
-        <CardFooter className="border-t pt-4 flex justify-end">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={refreshRoles}
-            disabled={isLoadingRoles}
-          >
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${isLoadingRoles ? "animate-spin" : ""}`}
-            />
-            Refresh
-          </Button>
-        </CardFooter>
-      </Card>
+        </TabsContent>
 
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Permission Management</CardTitle>
-          <CardDescription>
-            Configure detailed permissions for each role
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {permissionsError && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {permissionsError.message || "Failed to load permissions"}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {isLoadingPermissions ? (
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
-              <p className="text-sm text-muted-foreground">
-                Loading permissions...
-              </p>
-            </div>
-          ) : roles && roles.length > 0 ? (
-            <Tabs
-              value={activeRoleTab || roles[0]?.id}
-              onValueChange={setActiveRoleTab}
-            >
-              <TabsList className="mb-4">
-                {roles.map((role) => (
-                  <TabsTrigger key={role.id} value={role.id}>
-                    {role.name}
-                  </TabsTrigger>
+        <TabsContent value="permissions">
+          <div className="bg-card p-4 rounded-lg border">
+            <h3 className="text-lg font-medium mb-4">Available Permissions</h3>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="ml-2">Loading permissions...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {permissionCategories.map((category) => (
+                  <div key={category.id} className="space-y-2">
+                    <h4 className="font-medium text-md">{category.category}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {category.permissions.map((permission) => (
+                        <div
+                          key={permission.id}
+                          className="p-2 border rounded-md"
+                        >
+                          <p className="font-medium">{permission.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {permission.description ||
+                              "No description available"}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 ))}
-              </TabsList>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
 
-              {roles.map((role) => (
-                <TabsContent key={role.id} value={role.id}>
-                  <PermissionManagement
-                    role={role}
-                    availablePermissions={permissionCategories}
-                    canEdit={effectiveCanManagePermissions}
-                    onPermissionsChange={(permissions) => handlePermissionsChange(role.id, permissions)}
-                  />
-                </TabsContent>
-              ))}
-            </Tabs>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground border rounded-md">
-              <p>No roles available for permission management.</p>
-            </div>
-          )}
-        </CardContent>
-        <CardFooter className="border-t pt-4 flex justify-end gap-2">
-          {effectiveCanManagePermissions && (
-            <Button 
-              onClick={refreshPermissions}
-              variant="outline"
-              size="sm"
-              disabled={isLoading || isSaving}
-            >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
-              />
-              Refresh Permissions
-            </Button>
-          )}
-        </CardFooter>
-      </Card>
-
-      {/* Create Role Dialog */}
       <CreateRoleDialog
         open={showCreateRoleDialog}
         onOpenChange={setShowCreateRoleDialog}
-        onSuccess={handleCreateRoleSuccess}
-        availablePermissions={permissionCategories || []}
-        canCreate={effectiveCanCreateRoles}
+        permissionCategories={permissionCategories}
+        onCreateRole={handleCreateRole}
       />
 
-      {/* Edit Role Dialog */}
       {selectedRole && (
-        <EditRoleDialog
-          open={showEditRoleDialog}
-          onOpenChange={setShowEditRoleDialog}
-          role={selectedRole}
-          onSuccess={handleEditRoleSuccess}
-          availablePermissions={permissionCategories || []}
-          canEdit={effectiveCanEditRoles}
-        />
+        <>
+          <EditRoleDialog
+            role={selectedRole}
+            open={showEditRoleDialog}
+            onOpenChange={setShowEditRoleDialog}
+            permissionCategories={permissionCategories}
+            onSave={handleUpdateRole}
+          />
+          <DeleteRoleDialog
+            role={selectedRole}
+            open={showDeleteRoleDialog}
+            onOpenChange={setShowDeleteRoleDialog}
+            onDelete={() => handleDeleteRoleConfirm(selectedRole.id)}
+          />
+        </>
       )}
-
-      {/* Delete Role Dialog */}
-      {selectedRole && (
-        <DeleteRoleDialog
-          open={showDeleteRoleDialog}
-          onOpenChange={setShowDeleteRoleDialog}
-          role={selectedRole}
-          onSuccess={handleDeleteRoleSuccess}
-          canDelete={effectiveCanDeleteRoles}
-        />
-      )}
-    </>
+    </div>
   );
 };
 

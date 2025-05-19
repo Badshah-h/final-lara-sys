@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import {
   Card,
@@ -55,6 +56,9 @@ export const KnowledgeBaseManager = ({
       fileSize: 1240000,
       uploadedAt: new Date().toISOString(),
       status: "indexed",
+      content: "", // Added to fix type error
+      tags: [], // Added to fix type error
+      lastUpdated: new Date().toISOString(), // Added to fix type error
     },
     {
       id: "doc2",
@@ -65,6 +69,9 @@ export const KnowledgeBaseManager = ({
       fileSize: 890000,
       uploadedAt: new Date().toISOString(),
       status: "indexed",
+      content: "", // Added to fix type error
+      tags: [], // Added to fix type error
+      lastUpdated: new Date().toISOString(), // Added to fix type error
     },
     {
       id: "doc3",
@@ -75,6 +82,9 @@ export const KnowledgeBaseManager = ({
       fileSize: 450000,
       uploadedAt: new Date().toISOString(),
       status: "processing",
+      content: "", // Added to fix type error
+      tags: [], // Added to fix type error
+      lastUpdated: new Date().toISOString(), // Added to fix type error
     },
   ]);
 
@@ -119,6 +129,9 @@ export const KnowledgeBaseManager = ({
               fileSize: 1500000,
               uploadedAt: new Date().toISOString(),
               status: "processing",
+              content: "", // Added to fix type error
+              tags: [], // Added to fix type error
+              lastUpdated: new Date().toISOString(), // Added to fix type error
             };
             setDocuments([...documents, newDoc]);
           }, 500);
@@ -168,9 +181,9 @@ export const KnowledgeBaseManager = ({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "indexed":
-        return <Badge variant="success">Indexed</Badge>;
+        return <Badge variant="default">Indexed</Badge>;
       case "processing":
-        return <Badge variant="warning">Processing</Badge>;
+        return <Badge variant="default">Processing</Badge>;
       case "failed":
         return <Badge variant="destructive">Failed</Badge>;
       default:

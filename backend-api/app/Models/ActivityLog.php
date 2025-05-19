@@ -17,13 +17,9 @@ class ActivityLog extends Model
     protected $fillable = [
         'user_id',
         'action',
-        'target',
-        'details',
+        'description',
         'ip_address',
         'user_agent',
-        'is_active',
-        'created_by',
-        'updated_by',
     ];
 
     /**
@@ -32,31 +28,38 @@ class ActivityLog extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'details' => 'json',
-        'is_active' => 'boolean',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     /**
-     * Get the user that performed the action.
+     * Get the user that performed this activity.
      */
     public function user()
     {
         return $this->belongsTo(User::class);
     }
-    
+
     /**
-     * Get the user who created this activity log.
+     * Create a new activity log entry.
+     *
+     * @param string $action
+     * @param string $description
+     * @param \App\Models\User|null $user
+     * @return \App\Models\ActivityLog
      */
-    public function creator()
+    public static function log($action, $description, $user = null)
     {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-    
-    /**
-     * Get the user who last updated this activity log.
-     */
-    public function updater()
-    {
-        return $this->belongsTo(User::class, 'updated_by');
+        if (!$user && auth()->check()) {
+            $user = auth()->user();
+        }
+
+        return static::create([
+            'user_id' => $user ? $user->id : null,
+            'action' => $action,
+            'description' => $description,
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
     }
 }

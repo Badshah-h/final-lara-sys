@@ -1,11 +1,4 @@
-import {
-  CheckCircle2,
-  XCircle,
-  Edit,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import { CheckCircle2, XCircle, Edit, Trash2, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -17,20 +10,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useState, useMemo } from "react";
-import RolePermissionDisplay from "./RolePermissionDisplay";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { Role } from "@/types";
-import { getRoleBadgeVariant } from "@/utils/helpers";
+import { PERMISSION_CATEGORIES, hasPermissionInCategory } from "@/constants/permissions";
 
 interface RoleCardProps {
   role: Role;
-  onEdit?: (role: Role) => void;
-  onDelete?: (role: Role) => void;
+  onEdit: (role: Role) => void;
+  onDelete: (role: Role) => void;
   canEdit?: boolean;
   canDelete?: boolean;
 }
@@ -42,131 +28,63 @@ const RoleCard = ({
   canEdit = true,
   canDelete = true,
 }: RoleCardProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  // Group permissions by category
-  const permissionsByCategory = useMemo(() => {
-    if (!role.permissions) {
-      return {};
-    }
-
-    // Extract categories from permission names
-    const categories: Record<string, string[]> = {};
-
-    // Handle different permission data structures
-    const processPermissions = Array.isArray(role.permissions) ? role.permissions : [];
-    
-    processPermissions.forEach(permission => {
-      // Handle permission object or string
-      let permissionName: string;
-      
-      if (typeof permission === 'string') {
-        permissionName = permission;
-      } else if (permission && typeof permission === 'object' && permission !== null && 'name' in permission) {
-        // If permission is an object with a name property
-        permissionName = (permission as { name: string }).name;
-      } else {
-        // Skip invalid permissions
-        return;
-      }
-      
-      // Extract category from permission name (e.g., "user.create" -> "user")
-      const parts = permissionName.split('.');
-      const category = parts.length > 0 ? parts[0] : 'General';
-      const formattedCategory = category.charAt(0).toUpperCase() + category.slice(1);
-
-      if (!categories[formattedCategory]) {
-        categories[formattedCategory] = [];
-      }
-
-      categories[formattedCategory].push(permissionName);
-    });
-
-    return categories;
-  }, [role.permissions]);
-
-  // Get all unique categories
-  const permissionCategories = useMemo(() =>
-    Object.keys(permissionsByCategory).length > 0
-      ? Object.keys(permissionsByCategory)
-      : ['User', 'Role', 'Permission', 'System'],
-    [permissionsByCategory]);
-
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>{role.name}</CardTitle>
-            <CardDescription>{role.description}</CardDescription>
-          </div>
-          <Badge variant={getRoleBadgeVariant(role.name)}>
-            {role.userCount || 0} {role.userCount === 1 ? "User" : "Users"}
-          </Badge>
+          <CardTitle>{role.name}</CardTitle>
+          <Badge>{role.userCount || 0} Users</Badge>
         </div>
+        <CardDescription>{role.description}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          {permissionCategories.map((category: string) => (
-            <div key={category} className="flex items-center justify-between">
-              <Label>{category}</Label>
-              {permissionsByCategory[category] && permissionsByCategory[category].length > 0 ? (
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-              ) : (
-                <XCircle className="h-4 w-4 text-gray-500" />
-              )}
-            </div>
-          ))}
-        </div>
-
-        <Collapsible
-          open={isExpanded}
-          onOpenChange={setIsExpanded}
-          className="pt-2"
-        >
-          <CollapsibleTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex w-full justify-between p-0 h-8"
-            >
-              <span className="text-sm font-medium">
-                {isExpanded
-                  ? "Hide detailed permissions"
-                  : "Show detailed permissions"}
+          {Array.isArray(PERMISSION_CATEGORIES) && PERMISSION_CATEGORIES.length > 0 ? (
+            PERMISSION_CATEGORIES.map((category) => (
+              <div key={category} className="flex items-center justify-between">
+                <Label>{category}</Label>
+                {hasPermissionInCategory(role.permissions || [], category) ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-gray-500" />
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="flex items-center justify-center py-2">
+              <Shield className="h-4 w-4 mr-2 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {role.permissions?.length || 0} permissions assigned
               </span>
-              {isExpanded ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-2">
-            <RolePermissionDisplay role={role} />
-          </CollapsibleContent>
-        </Collapsible>
+            </div>
+          )}
+        </div>
       </CardContent>
-      <CardFooter className="flex justify-end space-x-2">
+      <CardFooter className="border-t pt-4 flex gap-2">
+        {canEdit && (
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={() => onEdit(role)}
+          >
+            <Edit className="mr-2 h-4 w-4" />
+            Edit Role
+          </Button>
+        )}
         {canDelete && (
           <Button
             variant="outline"
-            size="sm"
-            onClick={() => onDelete && onDelete(role)}
+            className={canEdit ? "flex-none" : "flex-1"}
+            onClick={() => onDelete(role)}
           >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
+            <Trash2 className="h-4 w-4" />
+            {!canEdit && <span className="ml-2">Delete Role</span>}
           </Button>
         )}
-        {canEdit && (
-          <Button
-            variant="default"
-            size="sm"
-            onClick={() => onEdit && onEdit(role)}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
+        {!canEdit && !canDelete && (
+          <div className="text-sm text-muted-foreground py-2">
+            You don't have permission to modify this role
+          </div>
         )}
       </CardFooter>
     </Card>

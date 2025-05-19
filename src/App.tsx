@@ -9,7 +9,7 @@ import RegisterPage from "./components/auth/RegisterPage";
 import ForgotPasswordPage from "./components/auth/ForgotPasswordPage";
 import ResetPasswordPage from "./components/auth/ResetPasswordPage";
 import ApiTester from "./components/api-tester/ApiTester";
-import CsrfDebugger from "./components/debug/CsrfDebugger";
+import { CsrfDebugger } from "./components/debug/CsrfDebugger";
 import routes from "tempo-routes";
 
 import ProtectedRoute from "./components/auth/ProtectedRoute";

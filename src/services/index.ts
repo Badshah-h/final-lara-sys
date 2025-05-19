@@ -1,16 +1,9 @@
-/**
- * Services Module
- * 
- * Central export point for all application services.
- * Services are organized by domain/functionality.
- */
 
-// Core API and Authentication
-export * from "./api";
-export * from "./auth";
-
-// User Management
-export * from "./user-management";
-
-// Access Control
-export * from "./access-control";
+export * from './api';
+export * from './auth';
+export * from './user';
+export * from './role';
+export * from './permission';
+export * from './activity';
+export * from './ai-configuration';
+export * from './knowledge-base/knowledgeBaseService';

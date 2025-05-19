@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -13,13 +12,15 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-   // Run seeders in the correct order
         $this->call([
-            PermissionSeeder::class,
+            RolesAndPermissionsSeeder::class,
             UserSeeder::class,
-            RoleSeeder::class,
-            UserRoleAssignmentSeeder::class,
-            AdminPermissionSeeder::class, // Added to ensure admin has all permissions
+            PromptTemplateSeeder::class,
+            KnowledgeBaseSeeder::class,
+            ResponseFormatSeeder::class,
+            FollowUpSeeder::class,
+            ActivityLogSeeder::class,
+
         ]);
     }
 }

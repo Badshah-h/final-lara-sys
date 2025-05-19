@@ -9,29 +9,14 @@ class Authenticate extends Middleware
 {
     /**
      * Get the path the user should be redirected to when they are not authenticated.
-     * 
-     * For API requests, we don't redirect but instead return null to trigger a JSON response.
      */
     protected function redirectTo(Request $request): ?string
     {
-        // For API requests, don't redirect - just return null to trigger a JSON response
-        return null;
-    }
+        if ($request->expectsJson()) {
+            return null; // Return null for API requests, which will result in a 401 Unauthorized response
+        }
 
-    /**
-     * Handle an unauthenticated request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  array  $guards
-     * @return void
-     *
-     * @throws \Illuminate\Auth\AuthenticationException
-     */
-    protected function unauthenticated($request, array $guards)
-    {
-        abort(response()->json([
-            'success' => false,
-            'message' => 'Unauthenticated',
-        ], 401));
+        // For web requests, redirect to the frontend login page
+        return env('FRONTEND_URL', 'http://localhost:3000') . '/login';
     }
 }

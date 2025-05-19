@@ -1,173 +1,273 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers\API;
 
-use App\Http\Requests\User\StoreUserRequest;
-use App\Http\Requests\User\UpdateUserRequest;
-use App\Http\Requests\User\UpdateStatusRequest;
-use App\Http\Requests\User\UpdatePasswordRequest;
-use App\Services\UserService;
-use Illuminate\Http\JsonResponse;
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules;
 
-class UserController extends BaseApiController
+class UserController extends Controller
 {
-    protected $userService;
-
     /**
-     * Create a new controller instance.
+     * Display a public listing of users with limited information.
+     * This endpoint is public and does not require authentication.
      *
-     * @param UserService $userService
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function __construct(UserService $userService)
+    public function publicList()
     {
-        $this->userService = $userService;
-    }
+        try {
+            // Get only active users with limited fields
+            $users = User::where('status', 'active')
+                ->select(['id', 'name', 'email', 'avatar_url', 'last_active'])
+                ->with(['roles:id,name'])
+                ->get();
 
+            // Transform the data to include only necessary information
+            $transformedUsers = $users->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'avatar_url' => $user->avatar_url,
+                    'last_active' => $user->last_active ? $user->last_active->diffForHumans() : null,
+                    'roles' => $user->roles->pluck('name'),
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'users' => $transformedUsers,
+                'total' => $transformedUsers->count(),
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving users: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
     /**
      * Display a listing of users.
      *
-     * @param Request $request
-     * @return JsonResponse
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request)
     {
-        $result = $this->userService->getAllUsers($request->all());
-        return $this->paginatedResponse($result['data'], $result['meta']);
+        $query = User::query();
+
+        // Filter by role if provided
+        if ($request->has('role')) {
+            $query->role($request->role);
+        }
+
+        // Filter by status if provided
+        if ($request->has('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Search by name or email
+        if ($request->has('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $users = $query->with('roles')->paginate($request->per_page ?? 15);
+
+        return response()->json($users);
     }
 
     /**
      * Store a newly created user.
      *
-     * @param StoreUserRequest $request
-     * @return JsonResponse
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function store(StoreUserRequest $request): JsonResponse
+    public function store(Request $request)
     {
-        $user = $this->userService->createUser($request->validated());
-        return $this->successResponse($user, 'User created successfully', 201);
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', Rules\Password::defaults()],
+            'role' => ['required', 'string', 'exists:roles,name'],
+            'status' => ['nullable', 'string', 'in:active,inactive,pending,suspended'],
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'status' => $validated['status'] ?? 'active',
+            'last_active' => now(),
+        ]);
+
+        // Assign role
+        $user->assignRole($validated['role']);
+
+        // Log activity
+        ActivityLogService::log('User Created', "Created new user: {$user->email} with role {$validated['role']}");
+
+        return response()->json([
+            'message' => 'User created successfully',
+            'user' => $user->load('roles'),
+        ], 201);
     }
 
     /**
      * Display the specified user.
      *
-     * @param int $id
-     * @return JsonResponse
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function show(int $id): JsonResponse
+    public function show(User $user)
     {
-        $user = $this->userService->getUserById($id);
-        return $this->successResponse($user);
+        // Load roles and direct permissions
+        $user->load('roles', 'permissions');
+
+        $userData = $user->toArray();
+        $userData['permissions'] = $user->getAllPermissions()->pluck('name');
+
+        return response()->json($userData);
     }
 
     /**
      * Update the specified user.
      *
-     * @param UpdateUserRequest $request
-     * @param int $id
-     * @return JsonResponse
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function update(UpdateUserRequest $request, int $id): JsonResponse
+    public function update(Request $request, User $user)
     {
-        $user = $this->userService->updateUser($id, $request->validated());
-        return $this->successResponse($user, 'User updated successfully');
+        $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
+            'status' => ['nullable', 'string', 'in:active,inactive,pending,suspended'],
+            'avatar_url' => ['nullable', 'string', 'url'],
+            'password' => ['nullable', Rules\Password::defaults()],
+        ]);
+
+        // Only update provided fields
+        $updateData = array_filter($validated, function ($value) {
+            return $value !== null;
+        });
+
+        // Hash password if provided
+        if (isset($updateData['password'])) {
+            $updateData['password'] = Hash::make($updateData['password']);
+        }
+
+        $user->update($updateData);
+
+        // Log activity
+        ActivityLogService::logUserUpdate($user, implode(', ', array_keys($updateData)));
+
+        return response()->json([
+            'message' => 'User updated successfully',
+            'user' => $user->fresh(),
+        ]);
     }
 
     /**
      * Remove the specified user.
      *
-     * @param int $id
-     * @return JsonResponse
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function destroy(int $id): JsonResponse
+    public function destroy(User $user)
     {
-        $this->userService->deleteUser($id);
-        return $this->successResponse(null, 'User deleted successfully');
+        // Prevent deleting yourself
+        if ($user->id === auth()->id()) {
+            return response()->json([
+                'message' => 'You cannot delete your own account'
+            ], 403);
+        }
+
+        // Log before deletion to capture the user email
+        ActivityLogService::log('User Deleted', "Deleted user: {$user->email}");
+
+        $user->delete();
+
+        return response()->json([
+            'message' => 'User deleted successfully'
+        ]);
     }
 
     /**
      * Update user status.
      *
-     * @param UpdateStatusRequest $request
-     * @param int $id
-     * @return JsonResponse
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function updateStatus(UpdateStatusRequest $request, int $id): JsonResponse
+    public function updateStatus(Request $request, User $user)
     {
-        $user = $this->userService->updateUserStatus($id, $request->status);
-        return $this->successResponse($user, 'User status updated successfully');
-    }
-
-    /**
-     * Send password reset email to user.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function sendPasswordReset(Request $request): JsonResponse
-    {
-        $request->validate(['email' => 'required|email']);
-        $result = $this->userService->sendPasswordResetEmail($request->email);
-
-        if (!$result['success']) {
-            return $this->errorResponse($result['message']);
-        }
-
-        return $this->successResponse(null, $result['message']);
-    }
-
-    /**
-     * Get user permissions.
-     *
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function permissions(int $id): JsonResponse
-    {
-        $permissions = $this->userService->getUserPermissions($id);
-        return $this->successResponse($permissions);
-    }
-
-    /**
-     * Get user activity logs.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function activityLogs(Request $request, int $id): JsonResponse
-    {
-        $result = $this->userService->getUserActivityLogs($id, $request->all());
-        return $this->paginatedResponse($result['data'], $result['meta']);
-    }
-
-    /**
-     * Update user password.
-     *
-     * @param UpdatePasswordRequest $request
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function updatePassword(UpdatePasswordRequest $request, int $id): JsonResponse
-    {
-        $user = $this->userService->updateUserPassword($id, $request->validated());
-        return $this->successResponse($user, 'Password updated successfully');
-    }
-
-    /**
-     * Upload user avatar.
-     *
-     * @param Request $request
-     * @param int $id
-     * @return JsonResponse
-     */
-    public function uploadAvatar(Request $request, int $id): JsonResponse
-    {
-        $request->validate([
-            'avatar' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+        $validated = $request->validate([
+            'status' => ['required', 'string', 'in:active,inactive,pending,suspended'],
         ]);
 
-        $user = $this->userService->uploadUserAvatar($id, $request->file('avatar'));
-        return $this->successResponse($user, 'Avatar uploaded successfully');
+        // Prevent changing your own status
+        if ($user->id === auth()->id()) {
+            return response()->json([
+                'message' => 'You cannot change your own status'
+            ], 403);
+        }
+
+        $oldStatus = $user->status;
+        $user->update([
+            'status' => $validated['status']
+        ]);
+
+        // Log activity
+        ActivityLogService::log('User Status Changed', "Changed user {$user->email} status from {$oldStatus} to {$validated['status']}");
+
+        return response()->json([
+            'message' => 'User status updated successfully',
+            'user' => $user->fresh(),
+        ]);
+    }
+
+    /**
+     * Assign roles to a user.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Models\User  $user
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function assignRoles(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'roles' => ['required', 'array'],
+            'roles.*' => ['string', 'exists:roles,name'],
+        ]);
+
+        // If you're modifying your own roles
+        if ($user->id === auth()->id() && !auth()->user()->hasRole('admin')) {
+            return response()->json([
+                'message' => 'You cannot modify your own roles unless you are an admin'
+            ], 403);
+        }
+
+        // Get current roles for logging
+        $oldRoles = $user->getRoleNames()->toArray();
+
+        // Sync roles
+        $user->syncRoles($validated['roles']);
+
+        // Log activity
+        ActivityLogService::logRoleAssignment($user, $validated['roles']);
+
+        return response()->json([
+            'message' => 'User roles updated successfully',
+            'user' => $user->load('roles'),
+        ]);
     }
 }

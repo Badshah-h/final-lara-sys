@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Search,
   MoreHorizontal,
   Edit,
   Key,
+  Mail,
   Trash2,
+  Users,
   Loader2,
   AlertCircle,
   RefreshCw,
-  User as UserIcon,
 } from "lucide-react";
-
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,6 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -43,37 +44,37 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-
+import { getRoleBadgeVariant } from "@/utils/helpers";
 import StatusIcon from "@/components/admin/user-management/components/StatusIcon";
-import UserRoleDisplay from "@/components/admin/user-management/components/UserRoleDisplay";
 import { EditUserDialog } from "@/components/admin/user-management/dialogs/EditUserDialog";
 import { DeleteUserDialog } from "@/components/admin/user-management/dialogs/DeleteUserDialog";
-import { ResetPasswordDialog } from "@/components/admin/user-management/dialogs/ResetPasswordDialog";
-import { User } from "@/types";
-import { useUsers } from "@/hooks/user-management/useUsers";
+import { User } from "@/types/domain";
+
 import { useRoles } from "@/hooks/access-control/useRoles";
-import { SEARCH_DEBOUNCE_TIME } from "@/constants";
+import { useUsers } from "@/hooks/user-management/useUsers";
+import { SEARCH_DEBOUNCE_TIME, USER_STATUSES_ARRAY } from "@/constants";
 
 // UsersList component with proper role and status filtering
 const UsersList = () => {
-  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("all"); // Default role filter
   const [selectedStatus, setSelectedStatus] = useState("all"); // Default status filter
   const [showEditUserDialog, setShowEditUserDialog] = useState(false);
   const [showDeleteUserDialog, setShowDeleteUserDialog] = useState(false);
-  const [showResetPasswordDialog, setShowResetPasswordDialog] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
     null,
   );
 
-  // Get users data
+  // Get users data using the useUsers hook
   const {
     users,
     totalUsers,
     currentPage,
+    perPage,
+    lastPage,
     isLoading,
     error,
     fetchUsers,
@@ -81,7 +82,7 @@ const UsersList = () => {
   } = useUsers();
 
   // Get roles data
-  const { roles } = useRoles();
+  const { roles, isLoading: isLoadingRoles } = useRoles();
 
   // Handle search query changes with debounce
   useEffect(() => {
@@ -101,23 +102,20 @@ const UsersList = () => {
   }, [searchQuery, updateQueryParams]);
 
   // Handle role filter changes
-  const handleRoleChange = (value: string) => {
-    setSelectedRole(value);
+  useEffect(() => {
     updateQueryParams({
-      role: value !== "all" ? value : undefined,
+      role: selectedRole !== "all" ? selectedRole : undefined,
     });
-  };
+  }, [selectedRole, updateQueryParams]);
 
   // Handle status filter changes
-  const handleStatusChange = (value: string) => {
-    setSelectedStatus(value);
+  useEffect(() => {
     updateQueryParams({
-      status: value !== "all" ? value : undefined,
+      status: selectedStatus !== "all" ? selectedStatus : undefined,
     });
-  };
+  }, [selectedStatus, updateQueryParams]);
 
   const openEditUserDialog = (user: User) => {
-    console.log("Opening edit dialog for user:", user);
     setSelectedUser(user);
     setShowEditUserDialog(true);
   };
@@ -125,16 +123,6 @@ const UsersList = () => {
   const openDeleteUserDialog = (user: User) => {
     setSelectedUser(user);
     setShowDeleteUserDialog(true);
-  };
-
-  const openResetPasswordDialog = (user: User) => {
-    setSelectedUser(user);
-    setShowResetPasswordDialog(true);
-  };
-
-  // Navigate to user details page
-  const navigateToUserDetails = (user: User) => {
-    navigate(`/admin/user-management/users/${user.id}`);
   };
 
   // Handle manual refresh
@@ -157,51 +145,30 @@ const UsersList = () => {
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
-              <Select value={selectedRole} onValueChange={handleRoleChange}>
+              <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Roles</SelectItem>
                   {roles &&
-                    roles.map((role) => (
+                    roles.map((role: { id: string; name: string }) => (
                       <SelectItem key={role.id} value={role.name}>
                         {role.name}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
-              <Select value={selectedStatus} onValueChange={handleStatusChange}>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
                 <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Filter by status">
-                    {selectedStatus !== "all" && (
-                      <div className="flex items-center gap-2">
-                        <StatusIcon status={selectedStatus} />
-                        {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
-                      </div>
-                    )}
-                  </SelectValue>
+                  <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">
-                    <div className="flex items-center gap-2">
-                      <StatusIcon status="active" />
-                      Active
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="inactive">
-                    <div className="flex items-center gap-2">
-                      <StatusIcon status="inactive" />
-                      Inactive
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="pending">
-                    <div className="flex items-center gap-2">
-                      <StatusIcon status="pending" />
-                      Pending
-                    </div>
-                  </SelectItem>
+                  {USER_STATUSES_ARRAY.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Button
@@ -264,10 +231,7 @@ const UsersList = () => {
                 users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell>
-                      <div
-                        className="flex items-center space-x-3 cursor-pointer hover:text-primary transition-colors"
-                        onClick={() => navigateToUserDetails(user)}
-                      >
+                      <div className="flex items-center space-x-3">
                         <Avatar>
                           <AvatarImage src={user.avatar} />
                           <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
@@ -281,25 +245,26 @@ const UsersList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <UserRoleDisplay user={user} allRoles={roles} />
+                      <Badge variant={getRoleBadgeVariant(user.role)}>
+                        {user.role}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <StatusIcon status={user.status} />
                     </TableCell>
                     <TableCell>
-                      {user.last_active ? new Date(user.last_active).toLocaleDateString() : 'Never'}
+                      {new Date(user.lastActive).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
-                        <DropdownMenuTrigger>
-                          <span
-                            role="button"
-                            tabIndex={0}
-                            className="h-8 w-8 flex items-center justify-center rounded hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                            aria-label="Open user actions menu"
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
                           >
                             <MoreHorizontal className="h-4 w-4" />
-                          </span>
+                          </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem
@@ -308,8 +273,11 @@ const UsersList = () => {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
-
-                          <DropdownMenuItem onClick={() => openResetPasswordDialog(user)}>
+                          <DropdownMenuItem>
+                            <Mail className="mr-2 h-4 w-4" />
+                            Send Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem>
                             <Key className="mr-2 h-4 w-4" />
                             Reset Password
                           </DropdownMenuItem>
@@ -339,14 +307,7 @@ const UsersList = () => {
         <CardFooter>
           <div className="flex items-center justify-between w-full">
             <p className="text-sm text-muted-foreground">
-              {totalUsers > 0 ? (
-                <>
-                  Showing {(currentPage - 1) * 10 + 1}-
-                  {Math.min(currentPage * 10, totalUsers)} of {totalUsers} users
-                </>
-              ) : (
-                "No users found"
-              )}
+              Showing {users?.length || 0} of {totalUsers || 0} users (Page {currentPage} of {lastPage})
             </p>
             <div className="flex items-center space-x-2">
               <Button
@@ -359,15 +320,12 @@ const UsersList = () => {
               >
                 Previous
               </Button>
-              <span className="text-sm text-muted-foreground mx-2">
-                Page {currentPage} of {Math.ceil(totalUsers / 10) || 1}
-              </span>
               <Button
                 variant="outline"
                 size="sm"
                 disabled={
                   isLoading ||
-                  (totalUsers > 0 && currentPage * 10 >= totalUsers)
+                  currentPage >= lastPage
                 }
                 onClick={() => updateQueryParams({ page: currentPage + 1 })}
               >
@@ -390,13 +348,6 @@ const UsersList = () => {
           user={selectedUser}
           open={showDeleteUserDialog}
           onOpenChange={setShowDeleteUserDialog}
-        />
-      )}
-      {showResetPasswordDialog && selectedUser && (
-        <ResetPasswordDialog
-          user={selectedUser}
-          open={showResetPasswordDialog}
-          onOpenChange={setShowResetPasswordDialog}
         />
       )}
     </>

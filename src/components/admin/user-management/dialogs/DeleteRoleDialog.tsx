@@ -1,109 +1,95 @@
-import { useState } from "react";
-import { AlertCircle } from "lucide-react";
-import { toast } from "@/components/ui/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 
-import { Role } from "../../../../types";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Role } from "@/types";
+import { AlertTriangle, Loader2 } from "lucide-react";
 
 interface DeleteRoleDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   role: Role;
-  onSuccess?: () => void;
-  canDelete?: boolean;
+  onDelete: (id: string) => Promise<boolean>;
 }
 
 export function DeleteRoleDialog({
   open,
   onOpenChange,
   role,
-  onSuccess,
-  canDelete = true,
+  onDelete,
 }: DeleteRoleDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const handleDeleteRole = async () => {
-    if (!canDelete) return;
-
-    setIsSubmitting(true);
+  const handleDelete = async () => {
+    setIsDeleting(true);
     try {
-      // Make actual API call to delete the role
-      await fetch(`/api/roles/${role.id}`, {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-TOKEN":
-            document
-              .querySelector('meta[name="csrf-token"]')
-              ?.getAttribute("content") || "",
-        },
-        credentials: "include",
-      });
-
-      if (onSuccess) {
-        onSuccess();
+      const success = await onDelete(role.id);
+      if (success) {
+        onOpenChange(false);
       }
-      onOpenChange(false);
-    } catch (error) {
-      console.error("Error deleting role:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete role. Please try again.",
-        variant: "destructive",
-      });
     } finally {
-      setIsSubmitting(false);
+      setIsDeleting(false);
     }
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete Role</AlertDialogTitle>
-          <AlertDialogDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[425px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Delete Role
+          </DialogTitle>
+          <DialogDescription>
             Are you sure you want to delete the role "{role.name}"? This action
             cannot be undone.
-            {role.userCount > 0 && (
-              <div className="mt-2 flex items-center text-destructive">
-                <AlertCircle className="h-4 w-4 mr-2" />
-                <span>
-                  This role is currently assigned to {role.userCount} users.
-                  They will need to be reassigned.
-                </span>
-              </div>
-            )}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleDeleteRole}
-            disabled={isSubmitting || !canDelete}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="py-4">
+          {role.isSystem ? (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md text-sm">
+              This is a system role and cannot be deleted.
+            </div>
+          ) : (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm dark:bg-yellow-900/20 dark:border-yellow-800">
+              Deleting this role will remove all associated permissions. Users with
+              this role will need to be assigned a new role.
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isDeleting}
           >
-            {isSubmitting ? (
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isDeleting || role.isSystem}
+          >
+            {isDeleting ? (
               <>
-                <div className="h-4 w-4 mr-2 rounded-full border-2 border-t-transparent border-current animate-spin"></div>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Deleting...
               </>
             ) : (
               "Delete"
             )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
-
-export default DeleteRoleDialog;

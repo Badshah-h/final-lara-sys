@@ -2,112 +2,133 @@
 
 namespace App\Services;
 
-use App\Repositories\ActivityLogRepository;
-use Illuminate\Support\Facades\Response;
+use App\Models\ActivityLog;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 
 class ActivityLogService
 {
-    protected $activityLogRepository;
-
     /**
-     * Create a new service instance.
+     * Log a user activity
      *
-     * @param ActivityLogRepository $activityLogRepository
+     * @param string $action
+     * @param string $description
+     * @param \App\Models\User|null $user
+     * @return \App\Models\ActivityLog
      */
-    public function __construct(ActivityLogRepository $activityLogRepository)
+    public static function log($action, $description, User $user = null)
     {
-        $this->activityLogRepository = $activityLogRepository;
+        return ActivityLog::log($action, $description, $user);
     }
 
     /**
-     * Get all activity logs with pagination.
+     * Log a user login
      *
-     * @param array $params
-     * @return array
+     * @param \App\Models\User $user
+     * @return \App\Models\ActivityLog
      */
-    public function getAllActivityLogs(array $params): array
+    public static function logLogin(User $user)
     {
-        return $this->activityLogRepository->getAllWithPagination($params);
+        return self::log('User Login', 'User logged in successfully', $user);
     }
 
     /**
-     * Get activity log by ID.
+     * Log a user logout
      *
-     * @param int $id
-     * @return mixed
+     * @param \App\Models\User $user
+     * @return \App\Models\ActivityLog
      */
-    public function getActivityLogById(int $id)
+    public static function logLogout(User $user)
     {
-        return $this->activityLogRepository->findOrFail($id);
+        return self::log('User Logout', 'User logged out', $user);
     }
 
     /**
-     * Export activity logs.
+     * Log a user registration
      *
-     * @param string $format
-     * @param array $params
-     * @return array
+     * @param \App\Models\User $user
+     * @return \App\Models\ActivityLog
      */
-    public function exportActivityLogs(string $format, array $params): array
+    public static function logRegistration(User $user)
     {
-        try {
-            $logs = $this->activityLogRepository->getForExport($params);
-
-            if ($format === 'json') {
-                $filename = 'activity-logs-' . date('Y-m-d') . '.json';
-                $content = json_encode($logs, JSON_PRETTY_PRINT);
-                $contentType = 'application/json';
-            } else { // csv
-                $filename = 'activity-logs-' . date('Y-m-d') . '.csv';
-                $content = $this->convertToCsv($logs);
-                $contentType = 'text/csv';
-            }
-
-            $headers = [
-                'Content-Type' => $contentType,
-                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
-            ];
-
-            $file = Response::make($content, 200, $headers);
-
-            return [
-                'success' => true,
-                'file' => $file,
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Export failed: ' . $e->getMessage(),
-            ];
-        }
+        return self::log('User Registration', 'New user account created', $user);
     }
 
     /**
-     * Convert array data to CSV format.
+     * Log a user update
      *
-     * @param array $data
-     * @return string
+     * @param \App\Models\User $user
+     * @param string $details
+     * @return \App\Models\ActivityLog
      */
-    private function convertToCsv(array $data): string
+    public static function logUserUpdate(User $user, $details = '')
     {
-        if (empty($data)) {
-            return '';
+        $actor = Auth::user();
+        $description = ($actor && $actor->id !== $user->id)
+            ? "Admin updated user: {$user->email}"
+            : "User updated their profile";
+
+        if ($details) {
+            $description .= " - $details";
         }
 
-        $output = fopen('php://temp', 'r+');
+        return self::log('User Update', $description, $actor);
+    }
 
-        // Add headers
-        fputcsv($output, array_keys($data[0]));
+    /**
+     * Log a role creation
+     *
+     * @param string $roleName
+     * @return \App\Models\ActivityLog
+     */
+    public static function logRoleCreated($roleName)
+    {
+        return self::log('Role Created', "Created new role: {$roleName}");
+    }
 
-        // Add rows
-        foreach ($data as $row) {
-            fputcsv($output, $row);
-        }
+    /**
+     * Log a role update
+     *
+     * @param string $roleName
+     * @return \App\Models\ActivityLog
+     */
+    public static function logRoleUpdated($roleName)
+    {
+        return self::log('Role Updated', "Updated role: {$roleName}");
+    }
 
-        rewind($output);
-        $csv = stream_get_contents($output);
-        fclose($output);
+    /**
+     * Log a role deletion
+     *
+     * @param string $roleName
+     * @return \App\Models\ActivityLog
+     */
+    public static function logRoleDeleted($roleName)
+    {
+        return self::log('Role Deleted', "Deleted role: {$roleName}");
+    }
 
-        return $csv;
+    /**
+     * Log permissions update
+     *
+     * @param string $roleName
+     * @return \App\Models\ActivityLog
+     */
+    public static function logPermissionsUpdated($roleName)
+    {
+        return self::log('Permissions Updated', "Updated permissions for role: {$roleName}");
+    }
+
+    /**
+     * Log role assignment
+     *
+     * @param \App\Models\User $user
+     * @param array $roles
+     * @return \App\Models\ActivityLog
+     */
+    public static function logRoleAssignment(User $user, array $roles)
+    {
+        $rolesStr = implode(', ', $roles);
+        return self::log('Role Assignment', "Assigned roles [{$rolesStr}] to user: {$user->email}");
     }
 }

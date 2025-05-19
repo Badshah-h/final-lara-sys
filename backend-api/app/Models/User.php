@@ -3,16 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     /**
      * The attributes that are mass assignable.
@@ -23,12 +21,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'is_active',
         'status',
-        'avatar',
+        'avatar_url',
         'last_active',
-        'created_by',
-        'updated_by',
     ];
 
     /**
@@ -42,191 +37,33 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be cast.
+     * Get the attributes that should be cast.
      *
-     * @var array<string, string>
+     * @return array<string, string>
      */
-    protected $casts = [
-        'is_active' => 'boolean',
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-    ];
-
-    /**
-     * Get the roles assigned to this user.
-     */
-    public function roles(): BelongsToMany
+    protected function casts(): array
     {
-        return $this->belongsToMany(Role::class, 'role_user')
-            ->withPivot('is_active', 'created_by', 'updated_by')
-            ->withTimestamps();
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'last_active' => 'datetime',
+        ];
     }
 
     /**
-     * Get all permissions the user has through their roles.
+     * Get all permissions for the user including permissions from roles.
+     *
+     * @return array
      */
     public function getAllPermissions()
     {
-        return $this->roles()
-            ->where('roles.is_active', true)
-            ->where('role_user.is_active', true)
-            ->with(['permissions' => function ($query) {
-                $query->where('permissions.is_active', true)
-                    ->where('permission_role.is_active', true);
-            }])
-            ->get()
-            ->pluck('permissions')
-            ->flatten()
-            ->unique('id');
-    }
+        $permissions = $this->permissions->pluck('name')->toArray();
 
-    /**
-     * Check if the user has a specific role.
-     *
-     * @param string|array $roles
-     * @return bool
-     */
-    public function hasRole($roles): bool
-    {
-        $userRoles = $this->roles()
-            ->where('roles.is_active', true)
-            ->where('role_user.is_active', true)
-            ->pluck('name')
-            ->toArray();
-
-        if (is_array($roles)) {
-            return !empty(array_intersect($roles, $userRoles));
+        foreach ($this->roles as $role) {
+            $rolePermissions = $role->permissions->pluck('name')->toArray();
+            $permissions = array_merge($permissions, $rolePermissions);
         }
 
-        return in_array($roles, $userRoles);
-    }
-
-    /**
-     * Check if the user has a specific permission.
-     *
-     * @param string|array $permissions
-     * @return bool
-     */
-    public function hasPermission($permissions): bool
-    {
-        $userPermissions = $this->getAllPermissions()->pluck('name')->toArray();
-
-        if (is_array($permissions)) {
-            return !empty(array_intersect($permissions, $userPermissions));
-        }
-
-        return in_array($permissions, $userPermissions);
-    }
-
-    /**
-     * Assign a role to the user.
-     *
-     * @param string|int $role Role name or ID
-     * @return void
-     */
-    public function assignRole($role): void
-    {
-        $roleId = is_numeric($role) ? $role : Role::where('name', $role)->value('id');
-
-        if (!$roleId) {
-            return;
-        }
-
-        // Check if the role is already assigned
-        if (!$this->roles()->where('roles.id', $roleId)->exists()) {
-            $this->roles()->attach($roleId, [
-                'is_active' => true,
-                'created_by' => auth()->id() ?? 1,
-                'updated_by' => auth()->id() ?? 1,
-            ]);
-        }
-    }
-
-    /**
-     * Sync the roles for the user.
-     *
-     * @param array $roles Array of role names or IDs
-     * @return void
-     */
-    public function syncRoles(array $roles): void
-    {
-        // Get current role IDs
-        $currentRoleIds = $this->roles()->pluck('roles.id')->toArray();
-
-        // Process new roles
-        $newRoleIds = [];
-        foreach ($roles as $role) {
-            $roleId = is_numeric($role) ? $role : Role::where('name', $role)->value('id');
-            if ($roleId) {
-                $newRoleIds[] = $roleId;
-            }
-        }
-
-        // Roles to detach (set as inactive)
-        $rolesToDetach = array_diff($currentRoleIds, $newRoleIds);
-        if (!empty($rolesToDetach)) {
-            $this->roles()->whereIn('roles.id', $rolesToDetach)->update([
-                'role_user.is_active' => false,
-                'role_user.updated_by' => auth()->id() ?? 1,
-            ]);
-        }
-
-        // Roles to attach
-        foreach ($newRoleIds as $roleId) {
-            // Check if role exists but is inactive
-            $existingRole = $this->roles()->where('roles.id', $roleId)->first();
-
-            if ($existingRole) {
-                // Reactivate role
-                $this->roles()->updateExistingPivot($roleId, [
-                    'is_active' => true,
-                    'updated_by' => auth()->id() ?? 1,
-                ]);
-            } else {
-                // Add new role
-                $this->roles()->attach($roleId, [
-                    'is_active' => true,
-                    'created_by' => auth()->id() ?? 1,
-                    'updated_by' => auth()->id() ?? 1,
-                ]);
-            }
-        }
-    }
-
-    /**
-     * Get the activity logs for the user.
-     */
-    public function activityLogs(): HasMany
-    {
-        return $this->hasMany(ActivityLog::class);
-    }
-
-    /**
-     * Get the user who created this user.
-     */
-    public function creator(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'created_by');
-    }
-
-    /**
-     * Get the user who last updated this user.
-     */
-    public function updater(): BelongsTo
-    {
-        return $this->belongsTo(User::class, 'updated_by');
-    }
-
-    /**
-     * The permissions that belong to the user.
-     */
-    public function permissions()
-    {
-        return $this->belongsToMany(
-            Permission::class,
-            'permission_user', // Pivot table name
-            'user_id',
-            'permission_id'
-        )->withTimestamps();
+        return array_unique($permissions);
     }
 }
