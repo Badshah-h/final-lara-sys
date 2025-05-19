@@ -28,8 +28,8 @@ import UserDetailsPage from "./components/UserDetailsPage";
 
 // Lazy load tab components to improve initial load time
 const UsersList = React.lazy(() => import("./tabs/UsersList"));
-const RolesPermissions = React.lazy(() => import("./tabs/RolesPermissions.tsx"));
-const ActivityLog = React.lazy(() => import("./tabs/ActivityLog.tsx"));
+const RolesPermissions = React.lazy(() => import("./tabs/RolesPermissions"));
+const ActivityLog = React.lazy(() => import("./tabs/ActivityLog"));
 
 // Loading fallback component
 const TabLoadingFallback = () => (
@@ -45,13 +45,13 @@ const UserManagement = () => {
   const navigate = useNavigate();
   // Commented out permission checks to make all functionality accessible
   // const { hasPermission } = useAuth();
-  
+
   // Make all tabs accessible to any logged-in user
   const canViewUsers = true; // hasPermission("view_users") || hasPermission("manage_users");
   const canAddUsers = true; // hasPermission("create_users") || hasPermission("manage_users");
   const canViewRoles = true; // hasPermission("view_roles") || hasPermission("manage_roles");
   const canViewActivity = true; // hasPermission("view_activity_log") || hasPermission("manage_users");
-  
+
   // No need to redirect users away from tabs they don't have permission for
   // useEffect(() => {
   //   if (activeTab === "roles" && !canViewRoles) {

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import ChatWidget from "./chat/ChatWidget";
 import AdminLayout from "./admin/AdminLayout";
 import Dashboard from "./admin/Dashboard";
+import ModuleDashboard from "./admin/ModuleDashboard";
 import AIConfiguration from "./admin/AIConfiguration";
 import WidgetBuilder from "./admin/WidgetBuilder";
 import KnowledgeBase from "./admin/KnowledgeBase";
@@ -41,10 +42,16 @@ function Home() {
     }, 300); // Match the duration-300 in the transition class
   };
 
+  // Use the new ModuleDashboard component for the main dashboard view
+
   const renderContent = () => {
+    // If we're on the dashboard view, show the new ModuleDashboard
+    if (activeView === "dashboard") {
+      return <ModuleDashboard />;
+    }
+
+    // Otherwise, render the appropriate component based on the active view
     switch (activeView) {
-      case "dashboard":
-        return <Dashboard />;
       case "conversations":
         return (
           <div className="space-y-6">
@@ -99,50 +106,6 @@ function Home() {
             </div>
           </div>
         );
-      case "embedding":
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">Embedding</h1>
-                <p className="text-muted-foreground">
-                  Manage embedding models and configurations
-                </p>
-              </div>
-            </div>
-            <div className="border rounded-md p-8 text-center">
-              <Code className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold mb-2">Embedding Module</h2>
-              <p className="text-muted-foreground mb-4">
-                This module is under development. It will allow you to manage
-                embedding models and configurations.
-              </p>
-            </div>
-          </div>
-        );
-      case "integrations":
-        return (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-3xl font-bold">Integrations</h1>
-                <p className="text-muted-foreground">
-                  Connect with external services and APIs
-                </p>
-              </div>
-            </div>
-            <div className="border rounded-md p-8 text-center">
-              <Webhook className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold mb-2">
-                Integrations Module
-              </h2>
-              <p className="text-muted-foreground mb-4">
-                This module is under development. It will allow you to connect
-                with external services and APIs.
-              </p>
-            </div>
-          </div>
-        );
       case "settings":
         return (
           <div className="space-y-6">
@@ -164,8 +127,6 @@ function Home() {
             </div>
           </div>
         );
-      case "api-tester":
-        return <ApiTester />;
       default:
         return <Dashboard />;
     }
