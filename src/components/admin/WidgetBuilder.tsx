@@ -82,7 +82,7 @@ const WidgetBuilder = () => {
       secondaryColor: "#e2e8f0",
       position: "bottom-right",
       size: "medium",
-      darkMode: true
+      darkMode: true,
     },
     behavior: {
       autoOpen: false,
@@ -91,13 +91,14 @@ const WidgetBuilder = () => {
       persistOpen: false,
       showNotifications: true,
       collectUserInfo: true,
-      requiredFields: ["name", "email"]
+      requiredFields: ["name", "email"],
     },
     content: {
       welcomeMessage: "Hi there! How can I help you today?",
       botName: "AI Assistant",
       placeholderText: "Type your message here...",
-      offlineMessage: "We're currently offline. Please leave a message and we'll get back to you."
+      offlineMessage:
+        "We're currently offline. Please leave a message and we'll get back to you.",
     },
     advanced: {
       customCSS: "",
@@ -105,8 +106,8 @@ const WidgetBuilder = () => {
       domain: "",
       apiKey: "",
       secureMode: true,
-      dataCollection: true
-    }
+      dataCollection: true,
+    },
   });
 
   // Load widget configuration from API
@@ -120,30 +121,30 @@ const WidgetBuilder = () => {
         }
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching widget config:', error);
+        console.error("Error fetching widget config:", error);
         toast({
           variant: "destructive",
           title: "Error loading configuration",
-          description: "There was an error loading your widget configuration."
+          description: "There was an error loading your widget configuration.",
         });
         setLoading(false);
       }
     };
-    
+
     fetchWidgetConfig();
   }, [toast]);
-  
+
   // Handle form field changes
   const handleChange = (section, field, value) => {
-    setWidgetConfig(prev => ({
+    setWidgetConfig((prev) => ({
       ...prev,
       [section]: {
         ...prev[section],
-        [field]: value
-      }
+        [field]: value,
+      },
     }));
   };
-  
+
   // Save widget configuration
   const handleSave = async () => {
     try {
@@ -152,18 +153,18 @@ const WidgetBuilder = () => {
       if (response.success) {
         toast({
           title: "Configuration saved",
-          description: "Your widget configuration has been saved successfully."
+          description: "Your widget configuration has been saved successfully.",
         });
       } else {
-        throw new Error(response.message || 'Unknown error');
+        throw new Error(response.message || "Unknown error");
       }
       setSaving(false);
     } catch (error) {
-      console.error('Error saving widget config:', error);
+      console.error("Error saving widget config:", error);
       toast({
         variant: "destructive",
         title: "Error saving configuration",
-        description: "There was an error saving your widget configuration."
+        description: "There was an error saving your widget configuration.",
       });
       setSaving(false);
     }
@@ -171,18 +172,19 @@ const WidgetBuilder = () => {
 
   const handleCopyCode = () => {
     // Copy the widget embed code to clipboard
-    const embedCode = `<script src="${window.location.origin}/widget.js" data-widget-id="${widgetConfig.advanced.apiKey || 'YOUR_API_KEY'}"></script>`;
-    navigator.clipboard.writeText(embedCode)
+    const embedCode = `<script src="${window.location.origin}/widget.js" data-widget-id="${widgetConfig.advanced?.apiKey || "YOUR_API_KEY"}"></script>`;
+    navigator.clipboard
+      .writeText(embedCode)
       .then(() => {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       })
-      .catch(err => {
-        console.error('Failed to copy:', err);
+      .catch((err) => {
+        console.error("Failed to copy:", err);
         toast({
           variant: "destructive",
           title: "Copy failed",
-          description: "Failed to copy embed code to clipboard."
+          description: "Failed to copy embed code to clipboard.",
         });
       });
   };
@@ -197,7 +199,8 @@ const WidgetBuilder = () => {
           </p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
-          <Save className="mr-2 h-4 w-4" /> {saving ? 'Saving...' : 'Save Configuration'}
+          <Save className="mr-2 h-4 w-4" />{" "}
+          {saving ? "Saving..." : "Save Configuration"}
         </Button>
       </div>
 
@@ -232,12 +235,24 @@ const WidgetBuilder = () => {
                       <div className="flex gap-2">
                         <div
                           className="h-10 w-10 rounded border"
-                          style={{ backgroundColor: widgetConfig.appearance.primaryColor }}
+                          style={{
+                            backgroundColor:
+                              widgetConfig.appearance?.primaryColor ||
+                              "#1e40af",
+                          }}
                         />
-                        <Input 
-                          type="text" 
-                          value={widgetConfig.appearance.primaryColor} 
-                          onChange={(e) => handleChange('appearance', 'primaryColor', e.target.value)}
+                        <Input
+                          type="text"
+                          value={
+                            widgetConfig.appearance?.primaryColor || "#1e40af"
+                          }
+                          onChange={(e) =>
+                            handleChange(
+                              "appearance",
+                              "primaryColor",
+                              e.target.value,
+                            )
+                          }
                         />
                       </div>
                     </div>
@@ -246,12 +261,24 @@ const WidgetBuilder = () => {
                       <div className="flex gap-2">
                         <div
                           className="h-10 w-10 rounded border"
-                          style={{ backgroundColor: widgetConfig.appearance.secondaryColor }}
+                          style={{
+                            backgroundColor:
+                              widgetConfig.appearance?.secondaryColor ||
+                              "#e2e8f0",
+                          }}
                         />
-                        <Input 
-                          type="text" 
-                          value={widgetConfig.appearance.secondaryColor} 
-                          onChange={(e) => handleChange('appearance', 'secondaryColor', e.target.value)}
+                        <Input
+                          type="text"
+                          value={
+                            widgetConfig.appearance?.secondaryColor || "#e2e8f0"
+                          }
+                          onChange={(e) =>
+                            handleChange(
+                              "appearance",
+                              "secondaryColor",
+                              e.target.value,
+                            )
+                          }
                         />
                       </div>
                     </div>
@@ -259,9 +286,13 @@ const WidgetBuilder = () => {
 
                   <div className="space-y-2">
                     <Label>Widget Position</Label>
-                    <Select 
-                      value={widgetConfig.appearance.position}
-                      onValueChange={(value) => handleChange('appearance', 'position', value)}
+                    <Select
+                      value={
+                        widgetConfig.appearance?.position || "bottom-right"
+                      }
+                      onValueChange={(value) =>
+                        handleChange("appearance", "position", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select position" />
@@ -279,9 +310,11 @@ const WidgetBuilder = () => {
 
                   <div className="space-y-2">
                     <Label>Widget Size</Label>
-                    <Select 
-                      value={widgetConfig.appearance.size}
-                      onValueChange={(value) => handleChange('appearance', 'size', value)}
+                    <Select
+                      value={widgetConfig.appearance?.size || "medium"}
+                      onValueChange={(value) =>
+                        handleChange("appearance", "size", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select size" />
@@ -301,10 +334,12 @@ const WidgetBuilder = () => {
                         Enable dark mode for your widget
                       </p>
                     </div>
-                    <Switch 
-                      id="dark-mode" 
-                      checked={widgetConfig.appearance.darkMode} 
-                      onCheckedChange={(checked) => handleChange('appearance', 'darkMode', checked)}
+                    <Switch
+                      id="dark-mode"
+                      checked={widgetConfig.appearance?.darkMode || false}
+                      onCheckedChange={(checked) =>
+                        handleChange("appearance", "darkMode", checked)
+                      }
                     />
                   </div>
                 </CardContent>
@@ -327,10 +362,12 @@ const WidgetBuilder = () => {
                         Automatically open the chat after page load
                       </p>
                     </div>
-                    <Switch 
-                      id="auto-open" 
-                      checked={widgetConfig.behavior.autoOpen}
-                      onCheckedChange={(checked) => handleChange('behavior', 'autoOpen', checked)}
+                    <Switch
+                      id="auto-open"
+                      checked={widgetConfig.behavior?.autoOpen || false}
+                      onCheckedChange={(checked) =>
+                        handleChange("behavior", "autoOpen", checked)
+                      }
                     />
                   </div>
                   <Separator />
@@ -338,15 +375,23 @@ const WidgetBuilder = () => {
                     <Label>Auto Open Delay (seconds)</Label>
                     <Input
                       type="number"
-                      value={widgetConfig.behavior.autoOpenDelay}
-                      onChange={(e) => handleChange('behavior', 'autoOpenDelay', parseInt(e.target.value) || 0)}
+                      value={widgetConfig.behavior?.autoOpenDelay || 5}
+                      onChange={(e) =>
+                        handleChange(
+                          "behavior",
+                          "autoOpenDelay",
+                          parseInt(e.target.value) || 0,
+                        )
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Auto Open Trigger</Label>
                     <Select
-                      value={widgetConfig.behavior.autoOpenTrigger}
-                      onValueChange={(value) => handleChange('behavior', 'autoOpenTrigger', value)}
+                      value={widgetConfig.behavior?.autoOpenTrigger || "time"}
+                      onValueChange={(value) =>
+                        handleChange("behavior", "autoOpenTrigger", value)
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select trigger" />
@@ -371,8 +416,12 @@ const WidgetBuilder = () => {
                     </div>
                     <Switch
                       id="notifications"
-                      checked={widgetConfig.behavior.showNotifications}
-                      onCheckedChange={(checked) => handleChange('behavior', 'showNotifications', checked)}
+                      checked={
+                        widgetConfig.behavior?.showNotifications || false
+                      }
+                      onCheckedChange={(checked) =>
+                        handleChange("behavior", "showNotifications", checked)
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -384,8 +433,10 @@ const WidgetBuilder = () => {
                     </div>
                     <Switch
                       id="persist-open"
-                      checked={widgetConfig.behavior.persistOpen}
-                      onCheckedChange={(checked) => handleChange('behavior', 'persistOpen', checked)}
+                      checked={widgetConfig.behavior?.persistOpen || false}
+                      onCheckedChange={(checked) =>
+                        handleChange("behavior", "persistOpen", checked)
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -397,8 +448,10 @@ const WidgetBuilder = () => {
                     </div>
                     <Switch
                       id="collect-info"
-                      checked={widgetConfig.behavior.collectUserInfo}
-                      onCheckedChange={(checked) => handleChange('behavior', 'collectUserInfo', checked)}
+                      checked={widgetConfig.behavior?.collectUserInfo || false}
+                      onCheckedChange={(checked) =>
+                        handleChange("behavior", "collectUserInfo", checked)
+                      }
                     />
                   </div>
                 </CardContent>
@@ -418,32 +471,61 @@ const WidgetBuilder = () => {
                     <Label>Widget Title</Label>
                     <Input
                       type="text"
-                      value={widgetConfig.content.botName}
-                      onChange={(e) => handleChange('content', 'botName', e.target.value)}
+                      value={widgetConfig.content?.botName || "AI Assistant"}
+                      onChange={(e) =>
+                        handleChange("content", "botName", e.target.value)
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Welcome Message</Label>
                     <Input
                       type="text"
-                      value={widgetConfig.content.welcomeMessage}
-                      onChange={(e) => handleChange('content', 'welcomeMessage', e.target.value)}
+                      value={
+                        widgetConfig.content?.welcomeMessage ||
+                        "Hi there! How can I help you today?"
+                      }
+                      onChange={(e) =>
+                        handleChange(
+                          "content",
+                          "welcomeMessage",
+                          e.target.value,
+                        )
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Placeholder Text</Label>
                     <Input
                       type="text"
-                      value={widgetConfig.content.placeholderText}
-                      onChange={(e) => handleChange('content', 'placeholderText', e.target.value)}
+                      value={
+                        widgetConfig.content?.placeholderText ||
+                        "Type your message here..."
+                      }
+                      onChange={(e) =>
+                        handleChange(
+                          "content",
+                          "placeholderText",
+                          e.target.value,
+                        )
+                      }
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Offline Message</Label>
                     <Input
                       type="text"
-                      value={widgetConfig.content.offlineMessage}
-                      onChange={(e) => handleChange('content', 'offlineMessage', e.target.value)}
+                      value={
+                        widgetConfig.content?.offlineMessage ||
+                        "We're currently offline. Please leave a message and we'll get back to you."
+                      }
+                      onChange={(e) =>
+                        handleChange(
+                          "content",
+                          "offlineMessage",
+                          e.target.value,
+                        )
+                      }
                     />
                   </div>
                 </CardContent>
@@ -461,15 +543,20 @@ const WidgetBuilder = () => {
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Widget ID</Label>
-                    <Input type="text" value={widgetConfig.advanced.apiKey} />
+                    <Input
+                      type="text"
+                      value={widgetConfig.advanced?.apiKey || ""}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Domain Restriction</Label>
                     <Input
                       type="text"
-                      value={widgetConfig.advanced.domain}
+                      value={widgetConfig.advanced?.domain || ""}
                       placeholder="example.com"
-                      onChange={(e) => handleChange('advanced', 'domain', e.target.value)}
+                      onChange={(e) =>
+                        handleChange("advanced", "domain", e.target.value)
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -481,8 +568,10 @@ const WidgetBuilder = () => {
                     </div>
                     <Switch
                       id="secure-mode"
-                      checked={widgetConfig.advanced.secureMode}
-                      onCheckedChange={(checked) => handleChange('advanced', 'secureMode', checked)}
+                      checked={widgetConfig.advanced?.secureMode || false}
+                      onCheckedChange={(checked) =>
+                        handleChange("advanced", "secureMode", checked)
+                      }
                     />
                   </div>
                   <div className="flex items-center justify-between">
@@ -494,8 +583,10 @@ const WidgetBuilder = () => {
                     </div>
                     <Switch
                       id="data-collection"
-                      checked={widgetConfig.advanced.dataCollection}
-                      onCheckedChange={(checked) => handleChange('advanced', 'dataCollection', checked)}
+                      checked={widgetConfig.advanced?.dataCollection || false}
+                      onCheckedChange={(checked) =>
+                        handleChange("advanced", "dataCollection", checked)
+                      }
                     />
                   </div>
                 </CardContent>
@@ -544,7 +635,11 @@ const WidgetBuilder = () => {
                   >
                     <div
                       className="p-4 flex justify-between items-center"
-                      style={{ backgroundColor: "#1e40af", color: "white" }}
+                      style={{
+                        backgroundColor:
+                          widgetConfig.appearance?.primaryColor || "#1e40af",
+                        color: "white",
+                      }}
                     >
                       <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full bg-white/20"></div>
@@ -574,7 +669,10 @@ const WidgetBuilder = () => {
                     </div>
                     <div
                       className="p-4 h-[240px] overflow-y-auto"
-                      style={{ backgroundColor: "#e2e8f0" }}
+                      style={{
+                        backgroundColor:
+                          widgetConfig.appearance?.secondaryColor || "#e2e8f0",
+                      }}
                     >
                       <div className="flex justify-start mb-4">
                         <div className="max-w-[80%] rounded-lg p-3 bg-white">
@@ -584,7 +682,11 @@ const WidgetBuilder = () => {
                       <div className="flex justify-end mb-4">
                         <div
                           className="max-w-[80%] rounded-lg p-3 text-white"
-                          style={{ backgroundColor: "#1e40af" }}
+                          style={{
+                            backgroundColor:
+                              widgetConfig.appearance?.primaryColor ||
+                              "#1e40af",
+                          }}
                         >
                           <p>I have a question about your services.</p>
                         </div>
@@ -606,7 +708,10 @@ const WidgetBuilder = () => {
                       />
                       <button
                         className="px-4 py-2 text-white rounded"
-                        style={{ backgroundColor: "#1e40af" }}
+                        style={{
+                          backgroundColor:
+                            widgetConfig.appearance?.primaryColor || "#1e40af",
+                        }}
                       >
                         Send
                       </button>
