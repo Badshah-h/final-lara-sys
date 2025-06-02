@@ -5,106 +5,51 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\ActivityLogService;
-use App\Services\AuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 
 class AuthController extends Controller
 {
-    protected $authService;
-
     /**
-     * Create a new controller instance.
-     *
-     * @param AuthService $authService
-     */
-    public function __construct(AuthService $authService)
-    {
-        $this->authService = $authService;
-    }
-
-    /**
-     * Login a user
+     * Login a user using Sanctum session authentication
      *
      * @param \Illuminate\Http\Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function login(Request $request)
     {
-        try {
-            // Log the request for debugging
-            \Illuminate\Support\Facades\Log::info('Login attempt', [
-                'email' => $request->input('email'),
-                'remember' => $request->boolean('remember'),
-                'headers' => $request->headers->all(),
-                'ip' => $request->ip(),
-                'csrf_token' => $request->header('X-XSRF-TOKEN'),
-                'session_id' => $request->session()->getId(),
-                'has_session' => $request->hasSession(),
-            ]);
+        $request->validate([
+            'email' => ['required', 'string', 'email'],
+            'password' => ['required', 'string'],
+        ]);
 
-            $validated = $request->validate([
-                'email' => ['required', 'string', 'email'],
-                'password' => ['required', 'string'],
-                // Remove 'remember' from validation as it's handled separately
-            ]);
+        $credentials = $request->only('email', 'password');
+        $remember = $request->boolean('remember');
 
-            // Get the remember flag but don't include it in the credentials
-            $remember = $request->boolean('remember');
-
-            // Only pass email and password to Auth::attempt
-            $credentials = [
-                'email' => $validated['email'],
-                'password' => $validated['password'],
-            ];
-
-            if (!Auth::attempt($credentials, $remember)) {
-                \Illuminate\Support\Facades\Log::warning('Login failed: Invalid credentials', [
-                    'email' => $request->input('email'),
-                    'ip' => $request->ip(),
-                ]);
-
-                return response()->json([
-                    'message' => 'Invalid login credentials'
-                ], 401);
-            }
-
-            $user = Auth::user();
-            $user->update(['last_active' => now()]);
-
-            // Log user login activity
-            ActivityLogService::logLogin($user);
-
-            \Illuminate\Support\Facades\Log::info('Login successful', [
-                'user_id' => $user->id,
-                'email' => $user->email,
-            ]);
-
+        if (!Auth::attempt($credentials, $remember)) {
             return response()->json([
-                'user' => $user->load('roles', 'permissions'),
-                'token' => $user->createToken('auth_token')->plainTextToken,
-            ]);
-        } catch (\Exception $e) {
-            // Log the exception
-            \Illuminate\Support\Facades\Log::error('Login exception', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // Return a more user-friendly error response
-            return response()->json([
-                'success' => false,
-                'message' => 'Login failed: ' . $e->getMessage(),
-                'error' => $e->getMessage(),
-                'error_type' => get_class($e),
-            ], 500);
+                'message' => 'Invalid login credentials'
+            ], 401);
         }
+
+        $user = Auth::user();
+        $user->update(['last_active' => now()]);
+
+        // Log user login activity
+        ActivityLogService::logLogin($user);
+
+        // Load user with roles and permissions
+        $user->load('roles');
+        $userData = $user->toArray();
+        $userData['permissions'] = $user->getAllPermissions();
+
+        return response()->json([
+            'message' => 'Login successful',
+            'user' => $userData
+        ]);
     }
 
     /**
@@ -135,12 +80,17 @@ class AuthController extends Controller
         // Log user registration activity
         ActivityLogService::logRegistration($user);
 
+        // Login the user
         Auth::login($user);
+
+        // Load user with roles and permissions
+        $user->load('roles');
+        $userData = $user->toArray();
+        $userData['permissions'] = $user->getAllPermissions();
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => $user->load('roles', 'permissions'),
-            'token' => $user->createToken('auth_token')->plainTextToken,
+            'user' => $userData
         ], 201);
     }
 
@@ -159,9 +109,9 @@ class AuthController extends Controller
             ActivityLogService::logLogout($user);
         }
 
-        if ($user) {
-            $user->tokens()->where('id', $user->currentAccessToken()->id)->delete();
-        }
+        Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json([
             'message' => 'Logged out successfully'
@@ -177,21 +127,19 @@ class AuthController extends Controller
     public function user(Request $request)
     {
         $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Unauthenticated'
+            ], 401);
+        }
+
         $user->update(['last_active' => now()]);
 
-        // Load roles and permissions
+        // Load user with roles and permissions
         $user->load('roles');
         $userData = $user->toArray();
-
-        // Get permissions - handle both array and collection return types
-        $permissions = $user->getAllPermissions();
-        if (is_array($permissions)) {
-            // If getAllPermissions returns an array, use it directly
-            $userData['permissions'] = $permissions;
-        } else {
-            // If getAllPermissions returns a collection, use pluck
-            $userData['permissions'] = $permissions->pluck('name')->toArray();
-        }
+        $userData['permissions'] = $user->getAllPermissions();
 
         return response()->json($userData);
     }
@@ -235,17 +183,15 @@ class AuthController extends Controller
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password) {
                 $user->forceFill([
-                    'password' => Hash::make($password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+                    'password' => Hash::make($password)
+                ])->setRememberToken(\Illuminate\Support\Str::random(60));
 
-                // Log password reset
-                ActivityLogService::log('Password Reset', 'User reset their password', $user);
+                $user->save();
             }
         );
 
         return $status === Password::PASSWORD_RESET
             ? response()->json(['message' => __($status)])
-            : response()->json(['email' => __($status)], 400);
+            : response()->json(['email' => [__($status)]], 400);
     }
 }

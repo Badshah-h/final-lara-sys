@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +8,11 @@ import { Slider } from '@/components/ui/slider';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel } from '@/components/ui/form';
-import { useToast } from '@/components/ui/use-toast';
 import { useForm } from 'react-hook-form';
-import { 
-  Copy, Code, Settings, Info, Palette, MessageSquare, LayoutTemplate, 
-  Smartphone, Save, Download, Sparkles, Layers, Brush, Zap, 
-  Monitor, Tablet, Smartphone as PhoneIcon, MousePointer, 
+import {
+  Copy, Code, Settings, Info, Palette, MessageSquare, LayoutTemplate,
+  Smartphone, Save, Download, Sparkles, Layers, Brush, Zap,
+  Monitor, Tablet, Smartphone as PhoneIcon, MousePointer,
   Shuffle, Heart, FlaskConical, X
 } from 'lucide-react';
 import { z } from 'zod';
@@ -29,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { showSuccessToast, showErrorToast } from '@/lib/utils';
 
 const widgetConfigSchema = z.object({
   general: z.object({
@@ -127,33 +126,33 @@ const colorPresets = {
 };
 
 const templates = [
-  { 
-    id: "modern", 
-    name: "Modern Clean", 
+  {
+    id: "modern",
+    name: "Modern Clean",
     description: "A sleek, modern design with clean lines and intuitive interactions",
     thumbnail: "https://via.placeholder.com/100x80/7E69AB/FFFFFF?text=Modern"
   },
-  { 
-    id: "glass", 
-    name: "Glass Effect", 
+  {
+    id: "glass",
+    name: "Glass Effect",
     description: "Trendy glass morphism effect with subtle transparency",
     thumbnail: "https://via.placeholder.com/100x80/88CCDD/FFFFFF?text=Glass"
   },
-  { 
-    id: "dark", 
-    name: "Dark Mode", 
+  {
+    id: "dark",
+    name: "Dark Mode",
     description: "Sleek dark interface that's easy on the eyes",
     thumbnail: "https://via.placeholder.com/100x80/1F2937/FFFFFF?text=Dark"
   },
-  { 
-    id: "rounded", 
-    name: "Soft Rounded", 
+  {
+    id: "rounded",
+    name: "Soft Rounded",
     description: "Friendly design with soft rounded corners and playful elements",
     thumbnail: "https://via.placeholder.com/100x80/F97316/FFFFFF?text=Rounded"
   },
-  { 
-    id: "minimal", 
-    name: "Minimalist", 
+  {
+    id: "minimal",
+    name: "Minimalist",
     description: "Clean, distraction-free design focused on content",
     thumbnail: "https://via.placeholder.com/100x80/111827/FFFFFF?text=Minimal"
   },
@@ -164,8 +163,7 @@ const WidgetConfigPage = () => {
   const [previewVisible, setPreviewVisible] = useState(true);
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
-  
+
   const defaultValues: WidgetConfigFormValues = {
     general: {
       name: "Customer Support Widget",
@@ -223,40 +221,52 @@ const WidgetConfigPage = () => {
       customParameters: {},
     },
   };
-  
+
   const form = useForm<WidgetConfigFormValues>({
     resolver: zodResolver(widgetConfigSchema),
     defaultValues,
   });
 
-  const onSubmit = (data: WidgetConfigFormValues) => {
-    setSaving(true);
-    console.log('Widget configuration saved:', data);
-    
-    // Simulate API call
-    setTimeout(() => {
-      setSaving(false);
-      toast({
-        title: "Configuration Saved",
-        description: "Your widget configuration has been successfully saved.",
+  const onSubmit = async (data: WidgetConfigFormValues) => {
+    try {
+      setSaving(true);
+
+      // Save widget configuration via API
+      const response = await fetch('/api/widgets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(data),
       });
-    }, 1000);
+
+      if (response.ok) {
+        const savedWidget = await response.json();
+        form.reset(savedWidget);
+        showSuccessToast("Widget saved successfully!", "Your widget configuration has been saved.");
+      } else {
+        throw new Error('Failed to save widget');
+      }
+    } catch (error) {
+      console.error('Failed to save widget:', error);
+      showErrorToast("Error", "Failed to save widget configuration.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetToDefaults = () => {
     form.reset(defaultValues);
-    toast({
-      title: "Reset to Defaults",
-      description: "All settings have been reset to default values.",
-    });
+    showSuccessToast("Reset to Defaults", "All settings have been reset to default values.");
   };
 
   const applyTemplate = (templateId: string) => {
     const template = templates.find(t => t.id === templateId);
     if (!template) return;
-    
+
     // Apply template-specific settings
-    switch(templateId) {
+    switch (templateId) {
       case "modern":
         form.setValue("appearance.primaryColor", colorPresets.modern.primary);
         form.setValue("appearance.secondaryColor", colorPresets.modern.secondary);
@@ -313,13 +323,10 @@ const WidgetConfigPage = () => {
         form.setValue("appearance.darkMode", false);
         break;
     }
-    
+
     form.setValue("general.presetTheme", templateId);
-    
-    toast({
-      title: `Applied ${template.name} Template`,
-      description: "Widget preview updated with the new template settings.",
-    });
+
+    showSuccessToast(`Applied ${template.name} Template`, "Widget preview updated with the new template settings.");
   };
 
   return (
@@ -334,8 +341,8 @@ const WidgetConfigPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={handleResetToDefaults}>Reset</Button>
-          <Button 
-            onClick={form.handleSubmit(onSubmit)} 
+          <Button
+            onClick={form.handleSubmit(onSubmit)}
             className="relative"
             disabled={saving}
           >
@@ -353,7 +360,7 @@ const WidgetConfigPage = () => {
           </Button>
         </div>
       </div>
-      
+
       <div className="flex flex-col lg:flex-row gap-6">
         <div className="lg:w-3/5 space-y-6">
           <Card className="border-none shadow-sm overflow-visible">
@@ -363,7 +370,7 @@ const WidgetConfigPage = () => {
                 Configure Your Widget
               </CardTitle>
             </CardHeader>
-            
+
             <CardContent className="overflow-visible">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -390,7 +397,7 @@ const WidgetConfigPage = () => {
                         <span className="hidden sm:inline">Advanced</span>
                       </TabsTrigger>
                     </TabsList>
-                    
+
                     <TabsContent value="general" className="space-y-4 pt-4">
                       {/* AI assistant suggestion */}
                       <AiAssistant
@@ -427,7 +434,7 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="general.welcomeMessage"
@@ -443,7 +450,7 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="general.botName"
@@ -459,7 +466,7 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="general.placeholderText"
@@ -475,15 +482,15 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="general.widgetPosition"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Widget Position</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
+                            <Select
+                              onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -511,21 +518,21 @@ const WidgetConfigPage = () => {
                         <FormDescription className="mb-3">
                           Choose from pre-built templates to quickly style your widget.
                         </FormDescription>
-                        <TemplatePresets 
-                          templates={templates} 
+                        <TemplatePresets
+                          templates={templates}
                           applyTemplate={applyTemplate}
                           currentTemplate={form.watch("general.presetTheme")}
                         />
                       </div>
                     </TabsContent>
-                    
+
                     <TabsContent value="appearance" className="space-y-4 pt-4">
                       <AiAssistant
                         suggestions={[
                           {
                             title: "Brand match",
                             description: "Use your brand's primary color for better recognition.",
-                            action: () => {}
+                            action: () => { }
                           },
                           {
                             title: "Enhanced readability",
@@ -544,53 +551,53 @@ const WidgetConfigPage = () => {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Primary Color</FormLabel>
-                              <ColorPicker 
-                                color={field.value} 
+                              <ColorPicker
+                                color={field.value}
                                 onChange={field.onChange}
                                 presets={Object.values(colorPresets).map(c => c.primary)}
                               />
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.secondaryColor"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Secondary Color</FormLabel>
-                              <ColorPicker 
-                                color={field.value} 
-                                onChange={field.onChange} 
+                              <ColorPicker
+                                color={field.value}
+                                onChange={field.onChange}
                                 presets={Object.values(colorPresets).map(c => c.secondary)}
                               />
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.headerBgColor"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Header Background</FormLabel>
-                              <ColorPicker 
-                                color={field.value} 
+                              <ColorPicker
+                                color={field.value}
                                 onChange={field.onChange}
                                 presets={Object.values(colorPresets).map(c => c.header)}
                               />
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.textColor"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Text Color</FormLabel>
-                              <ColorPicker 
-                                color={field.value} 
+                              <ColorPicker
+                                color={field.value}
                                 onChange={field.onChange}
                                 presets={Object.values(colorPresets).map(c => c.text)}
                               />
@@ -598,7 +605,7 @@ const WidgetConfigPage = () => {
                           )}
                         />
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                         <FormField
                           control={form.control}
@@ -618,7 +625,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.borderRadius"
@@ -637,7 +644,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.widgetWidth"
@@ -656,7 +663,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.widgetHeight"
@@ -686,8 +693,8 @@ const WidgetConfigPage = () => {
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Animation</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange} 
+                                <Select
+                                  onValueChange={field.onChange}
                                   defaultValue={field.value}
                                 >
                                   <FormControl>
@@ -705,15 +712,15 @@ const WidgetConfigPage = () => {
                               </FormItem>
                             )}
                           />
-                          
+
                           <FormField
                             control={form.control}
                             name="appearance.shadow"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Shadow</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange} 
+                                <Select
+                                  onValueChange={field.onChange}
                                   defaultValue={field.value}
                                 >
                                   <FormControl>
@@ -734,7 +741,7 @@ const WidgetConfigPage = () => {
                           />
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
                         <FormField
                           control={form.control}
@@ -756,7 +763,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.showCloseButton"
@@ -777,7 +784,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="appearance.darkMode"
@@ -828,7 +835,7 @@ const WidgetConfigPage = () => {
                           <FormItem>
                             <FormLabel>Custom CSS (Advanced)</FormLabel>
                             <FormControl>
-                              <textarea 
+                              <textarea
                                 className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border resize-y focus:outline-none focus:ring-2 focus:ring-primary"
                                 placeholder=".chat-widget { /* your custom styles */ }"
                                 {...field}
@@ -841,7 +848,7 @@ const WidgetConfigPage = () => {
                         )}
                       />
                     </TabsContent>
-                    
+
                     <TabsContent value="behavior" className="space-y-4 pt-4">
                       <AiAssistant
                         suggestions={[
@@ -884,7 +891,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="behavior.autoOpen"
@@ -905,7 +912,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         {form.watch("behavior.autoOpen") && (
                           <FormField
                             control={form.control}
@@ -926,7 +933,7 @@ const WidgetConfigPage = () => {
                             )}
                           />
                         )}
-                        
+
                         <FormField
                           control={form.control}
                           name="behavior.playSoundOnMessage"
@@ -947,7 +954,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="behavior.persistConversation"
@@ -968,7 +975,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="behavior.showTypingIndicator"
@@ -989,7 +996,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="behavior.enableUserRatings"
@@ -1010,7 +1017,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="behavior.collectUserData"
@@ -1196,7 +1203,7 @@ const WidgetConfigPage = () => {
                         ))}
                       </div>
                     </TabsContent>
-                    
+
                     <TabsContent value="advanced" className="space-y-4 pt-4">
                       <AiAssistant
                         suggestions={[
@@ -1227,8 +1234,8 @@ const WidgetConfigPage = () => {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>AI Model Selection</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
+                            <Select
+                              onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -1249,15 +1256,15 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="advanced.contextRetention"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Context Retention</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
+                            <Select
+                              onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>
@@ -1277,7 +1284,7 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <FormField
                         control={form.control}
                         name="advanced.maxMessagesStored"
@@ -1315,7 +1322,7 @@ const WidgetConfigPage = () => {
                           </FormItem>
                         )}
                       />
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
@@ -1337,7 +1344,7 @@ const WidgetConfigPage = () => {
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="advanced.debugMode"
@@ -1452,7 +1459,7 @@ const WidgetConfigPage = () => {
                           </FormDescription>
                         </div>
                       )}
-                      
+
                       <FormField
                         control={form.control}
                         name="advanced.loadTimeoutMs"
@@ -1487,7 +1494,7 @@ const WidgetConfigPage = () => {
                                 placeholder="Parameter Name"
                                 value={key}
                                 onChange={(e) => {
-                                  const params = {...form.getValues("advanced.customParameters")};
+                                  const params = { ...form.getValues("advanced.customParameters") };
                                   const oldKey = key;
                                   delete params[oldKey];
                                   params[e.target.value] = value;
@@ -1499,7 +1506,7 @@ const WidgetConfigPage = () => {
                                 placeholder="Value"
                                 value={value as string}
                                 onChange={(e) => {
-                                  const params = {...form.getValues("advanced.customParameters")};
+                                  const params = { ...form.getValues("advanced.customParameters") };
                                   params[key] = e.target.value;
                                   form.setValue("advanced.customParameters", params);
                                 }}
@@ -1510,7 +1517,7 @@ const WidgetConfigPage = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  const params = {...form.getValues("advanced.customParameters")};
+                                  const params = { ...form.getValues("advanced.customParameters") };
                                   delete params[key];
                                   form.setValue("advanced.customParameters", params);
                                 }}
@@ -1524,7 +1531,7 @@ const WidgetConfigPage = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              const params = {...form.getValues("advanced.customParameters")};
+                              const params = { ...form.getValues("advanced.customParameters") };
                               params[`param${Object.keys(params).length + 1}`] = "";
                               form.setValue("advanced.customParameters", params);
                             }}
@@ -1535,10 +1542,10 @@ const WidgetConfigPage = () => {
                       </div>
                     </TabsContent>
                   </Tabs>
-                  
+
                   <div className="flex justify-end pt-4">
-                    <Button 
-                      type="submit" 
+                    <Button
+                      type="submit"
                       className="relative"
                       disabled={saving}
                     >
@@ -1559,7 +1566,7 @@ const WidgetConfigPage = () => {
               </Form>
             </CardContent>
           </Card>
-          
+
           <Card className="border-none shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg flex items-center">
@@ -1572,7 +1579,7 @@ const WidgetConfigPage = () => {
             </CardContent>
           </Card>
         </div>
-        
+
         <div className="lg:w-2/5">
           <div className="sticky top-6 space-y-6">
             <Card className="border-none shadow-sm">
@@ -1621,7 +1628,7 @@ const WidgetConfigPage = () => {
                 {previewVisible ? (
                   <div className="bg-gray-100 rounded-lg p-4 min-h-[550px] flex items-center justify-center relative">
                     <DevicePreview device={previewDevice}>
-                      <WidgetPreview 
+                      <WidgetPreview
                         config={form.getValues()}
                         showWelcomeButtons={form.watch("behavior.welcomeButtons")?.length > 0}
                       />
@@ -1636,7 +1643,7 @@ const WidgetConfigPage = () => {
                 )}
               </CardContent>
             </Card>
-            
+
             <Card className="border-none shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center">

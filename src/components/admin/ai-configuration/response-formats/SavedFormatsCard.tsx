@@ -1,10 +1,10 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SavedFormatCardProps } from './types';
+import React from 'react';
 
 export function SavedFormatsCard({
   formats,
@@ -13,6 +13,17 @@ export function SavedFormatsCard({
   onNewFormat,
   isLoading = false
 }: SavedFormatCardProps) {
+  // Ensure formats is always an array with more robust checking
+  const formatsList = React.useMemo(() => {
+    if (!formats) return [];
+    if (Array.isArray(formats)) return formats;
+    if (typeof formats === 'object' && 'data' in formats && Array.isArray((formats as any).data)) {
+      return (formats as any).data;
+    }
+    console.warn('Unexpected formats structure:', formats);
+    return [];
+  }, [formats]);
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
@@ -22,18 +33,18 @@ export function SavedFormatsCard({
         </Button>
       </CardHeader>
       <CardContent>
-        {isLoading && formats.length === 0 ? (
+        {isLoading && formatsList.length === 0 ? (
           <div className="flex items-center justify-center h-[200px]">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : formats.length === 0 ? (
+        ) : formatsList.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p>No formats available</p>
             <p className="text-sm mt-2">Create your first format to get started</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {formats.map((format) => (
+            {formatsList.map((format) => (
               <div
                 key={format.id}
                 className={cn(

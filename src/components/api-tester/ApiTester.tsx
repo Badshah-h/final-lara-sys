@@ -33,7 +33,6 @@ import { JsonViewer } from "@/components/ui/json-viewer";
 import { getAllEndpoints } from "@/services/api-tester/registry";
 import apiTester from "@/services/api-tester/base";
 import { API_BASE_URL } from "@/services/api-tester/config";
-import { tokenService } from "@/services/auth/tokenService";
 import {
   Check,
   Copy,
@@ -211,26 +210,6 @@ const ApiTester = () => {
       setRegistryEndpoints(endpoints);
     } catch (e) {
       console.error("Failed to load registry endpoints", e);
-    }
-  }, []);
-
-  // Update token in headers when available
-  useEffect(() => {
-    const token = tokenService.getToken();
-    if (token) {
-      setRequest((prev) => ({
-        ...prev,
-        headers: {
-          ...prev.headers,
-          Authorization: `Bearer ${token}`,
-        },
-      }));
-      setHeaderKeys((prev) => {
-        if (!prev.includes("Authorization")) {
-          return [...prev, "Authorization"];
-        }
-        return prev;
-      });
     }
   }, []);
 

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PromptTemplate, PromptVariable } from "@/types/ai-configuration";
+import { PromptTemplate } from "@/types/ai-configuration";
 
 interface CategoryOption {
   id: string;
@@ -56,19 +55,48 @@ export const EditTemplateDialog = ({
   const handleVariableChange = (value: string) => {
     if (editedTemplate) {
       const variableMatches = value.match(/\{([^}]+)\}/g) || [];
-      const extractedVariables: PromptVariable[] = variableMatches.map((v) => ({
-        name: v.replace(/[{}]/g, ""),
-        description: "",
-        required: true,
-        defaultValue: "",
-      }));
-      
+      const extractedVariables: string[] = variableMatches.map((v) =>
+        v.replace(/[{}]/g, "")
+      );
+
       setEditedTemplate({
         ...editedTemplate,
         template: value,
         variables: extractedVariables,
       });
     }
+  };
+
+  // Helper function to safely render variables
+  const renderVariables = () => {
+    if (!editedTemplate?.variables || !Array.isArray(editedTemplate.variables)) {
+      return null;
+    }
+
+    return editedTemplate.variables.map((variable, index) => {
+      // Handle both string variables and object variables
+      let variableName: string;
+      let variableKey: string;
+
+      if (typeof variable === 'string') {
+        variableName = variable;
+        variableKey = `edit-var-${variable}-${index}`;
+      } else if (typeof variable === 'object' && variable !== null && 'name' in variable) {
+        // Handle object variables with name property
+        variableName = variable.name || `Variable ${index + 1}`;
+        variableKey = `edit-var-${variableName}-${index}`;
+      } else {
+        // Fallback for unexpected types
+        variableName = `Variable ${index + 1}`;
+        variableKey = `edit-var-fallback-${index}`;
+      }
+
+      return (
+        <Badge key={variableKey} variant="outline">
+          {variableName}
+        </Badge>
+      );
+    });
   };
 
   const handleSave = () => {
@@ -158,11 +186,7 @@ export const EditTemplateDialog = ({
               <div>
                 <Label>Variables (automatically detected)</Label>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {editedTemplate.variables && editedTemplate.variables.map((variable) => (
-                    <Badge key={variable.name} variant="outline">
-                      {variable.name}
-                    </Badge>
-                  ))}
+                  {renderVariables()}
                 </div>
               </div>
             </div>

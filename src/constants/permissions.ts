@@ -13,11 +13,11 @@ export const PERMISSION_CATEGORIES = [
 
 /**
  * Check if a role has any permission in a specific category
- * @param permissions Array of permission IDs
+ * @param permissions Array of permission IDs (can be strings or numbers)
  * @param category Category name to check
  * @returns boolean indicating if the role has any permission in the category
  */
-export function hasPermissionInCategory(permissions: string[], category: string): boolean {
+export function hasPermissionInCategory(permissions: (string | number)[], category: string): boolean {
   // Map categories to permission prefixes
   const categoryPrefixMap: Record<string, string[]> = {
     "User Management": ["users."],
@@ -26,19 +26,22 @@ export function hasPermissionInCategory(permissions: string[], category: string)
     "Analytics": ["analytics."],
     "API Access": ["api."]
   };
-  
+
   // Get the prefixes for this category
   const prefixes = categoryPrefixMap[category] || [];
-  
+
   // Check if any permission starts with the category prefix
   return permissions.some(permissionId => {
-    // For numeric IDs, we can't determine the category, so we'll return false
-    if (!isNaN(Number(permissionId))) {
+    // Convert to string if it's not already
+    const permissionStr = String(permissionId);
+
+    // For numeric IDs, we can't determine the category from the name, so we'll return false
+    if (!isNaN(Number(permissionStr)) && permissionStr === String(Number(permissionStr))) {
       return false;
     }
-    
+
     // Check if the permission starts with any of the prefixes
-    return prefixes.some(prefix => permissionId.startsWith(prefix));
+    return prefixes.some(prefix => permissionStr.startsWith(prefix));
   });
 }
 
@@ -54,10 +57,10 @@ export function getPermissionsByCategory(allPermissions: any[], category: string
     if (permission.category) {
       return permission.category === category;
     }
-    
+
     // Otherwise, try to determine the category from the permission name
     const name = permission.name || '';
-    
+
     switch (category) {
       case "User Management":
         return name.startsWith('users.');

@@ -2,194 +2,346 @@
 
 namespace App\Services;
 
-use App\Models\ChatMessage;
 use App\Models\ChatSession;
-use Exception;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\ChatMessage;
+use App\Models\Widget;
+use App\Models\AIModel;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Exception;
 
 class ChatService
 {
-    /**
-     * Get all chat sessions
-     *
-     * @param int $perPage
-     * @return LengthAwarePaginator
-     */
-    public function getAllSessions(int $perPage = 15): LengthAwarePaginator
+    protected $aiModelService;
+
+    public function __construct(AIModelService $aiModelService)
     {
-        return ChatSession::orderBy('last_message_time', 'desc')->paginate($perPage);
+        $this->aiModelService = $aiModelService;
     }
 
     /**
-     * Get a chat session by ID
-     *
-     * @param int $id
-     * @return ChatSession|null
-     */
-    public function getSessionById(int $id): ?ChatSession
-    {
-        return ChatSession::find($id);
-    }
-
-    /**
-     * Create a new chat session
+     * Create a new chat session.
      *
      * @param array $data
      * @return ChatSession
      */
     public function createSession(array $data): ChatSession
     {
-        $session = new ChatSession();
-        $session->name = $data['name'] ?? null;
-        $session->email = $data['email'] ?? null;
-        $session->user_id = Auth::id() ?? $data['user_id'] ?? null;
-        $session->status = $data['status'] ?? 'active';
-        $session->source = $data['source'] ?? 'website';
-        $session->metadata = $data['metadata'] ?? null;
-        $session->save();
+        $session = ChatSession::create([
+            'user_id' => Auth::id(),
+            'widget_id' => $data['widget_id'] ?? null,
+            'session_id' => $data['session_id'] ?? $this->generateSessionId(),
+            'metadata' => $data['metadata'] ?? [],
+            'status' => 'active',
+            'started_at' => now(),
+        ]);
 
-        return $session;
+        // Send welcome message if widget has one configured
+        if ($session->widget_id) {
+            $widget = Widget::find($session->widget_id);
+            if ($widget && isset($widget->configuration['general']['welcomeMessage'])) {
+                $this->addMessage($session->id, [
+                    'content' => $widget->configuration['general']['welcomeMessage'],
+                    'role' => 'assistant',
+                    'type' => 'welcome'
+                ]);
+            }
+        }
+
+        return $session->load('messages');
     }
 
     /**
-     * Update a chat session
+     * Get chat session by ID.
      *
-     * @param int $id
-     * @param array $data
+     * @param int $sessionId
      * @return ChatSession|null
      */
-    public function updateSession(int $id, array $data): ?ChatSession
+    public function getSession(int $sessionId): ?ChatSession
     {
-        $session = ChatSession::find($id);
-
-        if (!$session) {
-            return null;
-        }
-
-        if (isset($data['name'])) {
-            $session->name = $data['name'];
-        }
-        
-        if (isset($data['email'])) {
-            $session->email = $data['email'];
-        }
-        
-        if (isset($data['status'])) {
-            $session->status = $data['status'];
-        }
-        
-        if (isset($data['metadata'])) {
-            $session->metadata = $data['metadata'];
-        }
-        
-        $session->save();
-
-        return $session;
+        return ChatSession::with(['messages', 'widget', 'user'])
+            ->where('id', $sessionId)
+            ->first();
     }
 
     /**
-     * Close a chat session
+     * Get all chat sessions for the authenticated user.
      *
-     * @param int $id
+     * @param array $filters
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getSessions(array $filters = [])
+    {
+        $query = ChatSession::with(['widget', 'user'])
+            ->orderBy('updated_at', 'desc');
+
+        if (isset($filters['widget_id'])) {
+            $query->where('widget_id', $filters['widget_id']);
+        }
+
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (isset($filters['user_id'])) {
+            $query->where('user_id', $filters['user_id']);
+        }
+
+        return $query->paginate($filters['per_page'] ?? 15);
+    }
+
+    /**
+     * Send a message in a chat session.
+     *
+     * @param int $sessionId
+     * @param array $messageData
+     * @return ChatMessage
+     * @throws Exception
+     */
+    public function sendMessage(int $sessionId, array $messageData): ChatMessage
+    {
+        $session = $this->getSession($sessionId);
+
+        if (!$session) {
+            throw new Exception('Chat session not found');
+        }
+
+        if ($session->status !== 'active') {
+            throw new Exception('Chat session is not active');
+        }
+
+        // Add user message
+        $userMessage = $this->addMessage($sessionId, [
+            'content' => $messageData['content'],
+            'role' => 'user',
+            'type' => $messageData['type'] ?? 'text',
+            'metadata' => $messageData['metadata'] ?? []
+        ]);
+
+        // Generate AI response
+        try {
+            $aiResponse = $this->generateAIResponse($session, $messageData['content']);
+
+            $assistantMessage = $this->addMessage($sessionId, [
+                'content' => $aiResponse,
+                'role' => 'assistant',
+                'type' => 'text',
+                'metadata' => [
+                    'model_used' => $session->widget->ai_model_id ?? 'default',
+                    'response_time' => microtime(true) - LARAVEL_START
+                ]
+            ]);
+
+            // Update session timestamp
+            $session->touch();
+
+            return $assistantMessage;
+
+        } catch (Exception $e) {
+            Log::error('Failed to generate AI response', [
+                'session_id' => $sessionId,
+                'error' => $e->getMessage()
+            ]);
+
+            // Send error message
+            return $this->addMessage($sessionId, [
+                'content' => 'I apologize, but I\'m having trouble processing your request right now. Please try again later.',
+                'role' => 'assistant',
+                'type' => 'error',
+                'metadata' => ['error' => $e->getMessage()]
+            ]);
+        }
+    }
+
+    /**
+     * Add a message to a chat session.
+     *
+     * @param int $sessionId
+     * @param array $messageData
+     * @return ChatMessage
+     */
+    public function addMessage(int $sessionId, array $messageData): ChatMessage
+    {
+        return ChatMessage::create([
+            'chat_session_id' => $sessionId,
+            'content' => $messageData['content'],
+            'role' => $messageData['role'],
+            'type' => $messageData['type'] ?? 'text',
+            'metadata' => $messageData['metadata'] ?? [],
+            'sent_at' => now(),
+        ]);
+    }
+
+    /**
+     * Get messages for a chat session.
+     *
+     * @param int $sessionId
+     * @param array $filters
+     * @return \Illuminate\Pagination\LengthAwarePaginator
+     */
+    public function getMessages(int $sessionId, array $filters = [])
+    {
+        $query = ChatMessage::where('chat_session_id', $sessionId)
+            ->orderBy('sent_at', 'asc');
+
+        if (isset($filters['role'])) {
+            $query->where('role', $filters['role']);
+        }
+
+        if (isset($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+
+        return $query->paginate($filters['per_page'] ?? 50);
+    }
+
+    /**
+     * Generate AI response for a chat session.
+     *
+     * @param ChatSession $session
+     * @param string $userMessage
+     * @return string
+     * @throws Exception
+     */
+    private function generateAIResponse(ChatSession $session, string $userMessage): string
+    {
+        // Get the AI model to use
+        $aiModel = $this->getAIModelForSession($session);
+
+        if (!$aiModel) {
+            throw new Exception('No AI model configured for this chat');
+        }
+
+        // Build conversation context
+        $context = $this->buildConversationContext($session);
+
+        // Generate response using AI model
+        return $this->aiModelService->generateResponse($aiModel, $userMessage, [
+            'context' => $context,
+            'max_tokens' => 500,
+            'temperature' => 0.7
+        ]);
+    }
+
+    /**
+     * Get the AI model to use for a session.
+     *
+     * @param ChatSession $session
+     * @return AIModel|null
+     */
+    private function getAIModelForSession(ChatSession $session): ?AIModel
+    {
+        // Try to get model from widget configuration
+        if ($session->widget && $session->widget->ai_model_id) {
+            $model = AIModel::find($session->widget->ai_model_id);
+            if ($model && $model->isActive) {
+                return $model;
+            }
+        }
+
+        // Fall back to default model
+        return AIModel::where('isDefault', true)
+            ->where('isActive', true)
+            ->first();
+    }
+
+    /**
+     * Build conversation context from recent messages.
+     *
+     * @param ChatSession $session
+     * @param int $maxMessages
+     * @return string
+     */
+    private function buildConversationContext(ChatSession $session, int $maxMessages = 10): string
+    {
+        $messages = ChatMessage::where('chat_session_id', $session->id)
+            ->where('type', '!=', 'welcome')
+            ->orderBy('sent_at', 'desc')
+            ->limit($maxMessages)
+            ->get()
+            ->reverse();
+
+        $context = '';
+        foreach ($messages as $message) {
+            $role = $message->role === 'user' ? 'Human' : 'Assistant';
+            $context .= "{$role}: {$message->content}\n";
+        }
+
+        return $context;
+    }
+
+    /**
+     * End a chat session.
+     *
+     * @param int $sessionId
      * @return bool
      */
-    public function closeSession(int $id): bool
+    public function endSession(int $sessionId): bool
     {
-        $session = ChatSession::find($id);
+        $session = ChatSession::find($sessionId);
 
         if (!$session) {
             return false;
         }
 
-        $session->status = 'closed';
-        return $session->save();
+        $session->update([
+            'status' => 'ended',
+            'ended_at' => now()
+        ]);
+
+        return true;
     }
 
     /**
-     * Get messages by session ID
+     * Generate a unique session ID.
      *
-     * @param int $sessionId
-     * @return Collection
+     * @return string
      */
-    public function getMessagesBySessionId(int $sessionId): Collection
+    private function generateSessionId(): string
     {
-        return ChatMessage::where('session_id', $sessionId)
-            ->orderBy('created_at')
-            ->get();
+        return 'chat_' . uniqid() . '_' . time();
     }
 
     /**
-     * Send a new message
+     * Get chat analytics for a widget.
      *
-     * @param int $sessionId
-     * @param array $data
-     * @return ChatMessage|null
+     * @param int $widgetId
+     * @param array $dateRange
+     * @return array
      */
-    public function sendMessage(int $sessionId, array $data): ?ChatMessage
+    public function getChatAnalytics(int $widgetId, array $dateRange = []): array
     {
-        $session = ChatSession::find($sessionId);
+        $query = ChatSession::where('widget_id', $widgetId);
 
-        if (!$session) {
-            return null;
+        if (!empty($dateRange['start'])) {
+            $query->where('started_at', '>=', $dateRange['start']);
         }
 
-        // Create the message
-        $message = new ChatMessage();
-        $message->session_id = $sessionId;
-        $message->content = $data['content'];
-        $message->sender = $data['sender'];
-        $message->read = $data['sender'] !== 'user'; // If it's from the user, mark as unread
-        $message->metadata = $data['metadata'] ?? null;
-        $message->attachments = $data['attachments'] ?? null;
-        $message->save();
-
-        // Update the session
-        $session->last_message = $data['content'];
-        $session->last_message_time = now();
-        
-        // Update unread count if the sender is the user
-        if ($data['sender'] === 'user') {
-            $session->unread = $session->unread + 1;
-        }
-        
-        $session->save();
-
-        return $message;
-    }
-
-    /**
-     * Mark all messages in a session as read
-     *
-     * @param int $sessionId
-     * @return bool
-     */
-    public function markMessagesAsRead(int $sessionId): bool
-    {
-        $session = ChatSession::find($sessionId);
-
-        if (!$session) {
-            return false;
+        if (!empty($dateRange['end'])) {
+            $query->where('started_at', '<=', $dateRange['end']);
         }
 
-        // Update all unread messages
-        ChatMessage::where('session_id', $sessionId)
-            ->where('read', false)
-            ->update(['read' => true]);
+        $totalSessions = $query->count();
+        $activeSessions = $query->where('status', 'active')->count();
+        $endedSessions = $query->where('status', 'ended')->count();
 
-        // Reset the session unread count
-        $session->unread = 0;
-        return $session->save();
-    }
+        $messageQuery = ChatMessage::whereIn('chat_session_id',
+            $query->pluck('id')
+        );
 
-    /**
-     * Get the total unread message count
-     *
-     * @return int
-     */
-    public function getUnreadCount(): int
-    {
-        return ChatSession::sum('unread');
+        $totalMessages = $messageQuery->count();
+        $userMessages = $messageQuery->where('role', 'user')->count();
+        $assistantMessages = $messageQuery->where('role', 'assistant')->count();
+
+        return [
+            'total_sessions' => $totalSessions,
+            'active_sessions' => $activeSessions,
+            'ended_sessions' => $endedSessions,
+            'total_messages' => $totalMessages,
+            'user_messages' => $userMessages,
+            'assistant_messages' => $assistantMessages,
+            'avg_messages_per_session' => $totalSessions > 0 ? round($totalMessages / $totalSessions, 2) : 0,
+        ];
     }
 }

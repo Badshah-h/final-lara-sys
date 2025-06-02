@@ -34,6 +34,23 @@ export interface PaginatedResponse<T> {
   meta: PaginationMeta;
 }
 
+// Laravel paginated response structure
+export interface LaravelPaginatedResponse<T> {
+  current_page: number;
+  data: T[];
+  first_page_url: string;
+  from: number;
+  last_page: number;
+  last_page_url: string;
+  links: any[];
+  next_page_url: string | null;
+  path: string;
+  per_page: number;
+  prev_page_url: string | null;
+  to: number;
+  total: number;
+}
+
 // API Request Types
 export interface UserCreateRequest {
   name: string;
@@ -86,7 +103,7 @@ export interface UserQueryParams extends BaseQueryParams {
   status?: string;
 }
 
-export interface RoleQueryParams extends BaseQueryParams {}
+export interface RoleQueryParams extends BaseQueryParams { }
 
 export interface ActivityLogQueryParams extends BaseQueryParams {
   user_id?: string;

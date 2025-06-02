@@ -1,4 +1,3 @@
-
 import { RefreshCw } from "lucide-react";
 import { PromptTemplate } from "@/types/ai-configuration";
 import { EmptyTemplateState } from "../EmptyTemplateState";
@@ -35,7 +34,7 @@ export const TemplatesContent = ({
 
   if (templates.length === 0) {
     return (
-      <EmptyTemplateState 
+      <EmptyTemplateState
         hasFilters={hasFilters}
         onAddTemplate={onAddTemplate}
       />
@@ -44,9 +43,9 @@ export const TemplatesContent = ({
 
   return (
     <div className="grid gap-4">
-      {templates.map((template) => (
+      {templates.map((template, index) => (
         <TemplateCard
-          key={template.id}
+          key={template.id || `template-${index}`}
           template={template}
           categoryName={categoryOptions.find((c) => c.id === template.category)?.name || "General"}
           onEdit={onEditTemplate}

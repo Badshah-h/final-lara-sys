@@ -48,20 +48,37 @@ class ResponseFormatService
     public function createFormat(array $data): ResponseFormat
     {
         // If this format is set as default, update others to non-default
-        if (isset($data['is_default']) && $data['is_default']) {
+        if (isset($data['isDefault']) && $data['isDefault']) {
             $this->resetDefaultFormats();
         }
 
-        $format = new ResponseFormat();
-        $format->name = $data['name'];
-        $format->description = $data['description'] ?? null;
-        $format->content = $data['content'];
-        $format->system_instructions = $data['system_instructions'] ?? null;
-        $format->parameters = $data['parameters'] ?? null;
-        $format->is_default = $data['is_default'] ?? false;
-        $format->save();
+        // Map frontend data to backend structure
+        $formatData = [
+            'name' => $data['name'],
+            'description' => $data['description'] ?? null,
+            'template' => $data['content'] ?? $data['template'] ?? '',
+            'system_instructions' => $data['systemInstructions'] ?? null,
+            'is_default' => $data['isDefault'] ?? false,
+        ];
 
-        return $format;
+        // Build parameters from frontend structure
+        $parameters = [];
+        if (isset($data['format'])) $parameters['format'] = $data['format'];
+        if (isset($data['length'])) $parameters['length'] = $data['length'];
+        if (isset($data['tone'])) $parameters['tone'] = $data['tone'];
+
+        if (isset($data['options'])) {
+            $parameters = array_merge($parameters, $data['options']);
+        }
+
+        if (isset($data['parameters'])) {
+            $parameters = array_merge($parameters, $data['parameters']);
+        }
+
+        $formatData['parameters'] = $parameters;
+        $formatData['variables'] = $data['variables'] ?? null;
+
+        return ResponseFormat::create($formatData);
     }
 
     /**
@@ -80,37 +97,59 @@ class ResponseFormatService
         }
 
         // If this format is set as default, update others to non-default
-        if (isset($data['is_default']) && $data['is_default']) {
+        if (isset($data['isDefault']) && $data['isDefault']) {
             $this->resetDefaultFormats();
         }
 
-        if (isset($data['name'])) {
-            $format->name = $data['name'];
-        }
-        
-        if (isset($data['description'])) {
-            $format->description = $data['description'];
-        }
-        
-        if (isset($data['content'])) {
-            $format->content = $data['content'];
-        }
-        
-        if (isset($data['system_instructions'])) {
-            $format->system_instructions = $data['system_instructions'];
-        }
-        
-        if (isset($data['parameters'])) {
-            $format->parameters = $data['parameters'];
-        }
-        
-        if (isset($data['is_default'])) {
-            $format->is_default = $data['is_default'];
-        }
-        
-        $format->save();
+        // Map frontend data to backend structure
+        $updateData = [];
 
-        return $format;
+        if (isset($data['name'])) {
+            $updateData['name'] = $data['name'];
+        }
+
+        if (isset($data['description'])) {
+            $updateData['description'] = $data['description'];
+        }
+
+        if (isset($data['content']) || isset($data['template'])) {
+            $updateData['template'] = $data['content'] ?? $data['template'];
+        }
+
+        if (isset($data['systemInstructions'])) {
+            $updateData['system_instructions'] = $data['systemInstructions'];
+        }
+
+        if (isset($data['isDefault'])) {
+            $updateData['is_default'] = $data['isDefault'];
+        }
+
+        // Update parameters
+        if (isset($data['format']) || isset($data['length']) || isset($data['tone']) || isset($data['options']) || isset($data['parameters'])) {
+            $parameters = $format->parameters ?? [];
+
+            if (isset($data['format'])) $parameters['format'] = $data['format'];
+            if (isset($data['length'])) $parameters['length'] = $data['length'];
+            if (isset($data['tone'])) $parameters['tone'] = $data['tone'];
+
+            if (isset($data['options'])) {
+                $parameters = array_merge($parameters, $data['options']);
+            }
+
+            if (isset($data['parameters'])) {
+                $parameters = array_merge($parameters, $data['parameters']);
+            }
+
+            $updateData['parameters'] = $parameters;
+        }
+
+        if (isset($data['variables'])) {
+            $updateData['variables'] = $data['variables'];
+        }
+
+        $format->update($updateData);
+
+        return $format->fresh();
     }
 
     /**
@@ -156,7 +195,7 @@ class ResponseFormatService
         $format->is_default = true;
         $format->save();
 
-        return $format;
+        return $format->fresh();
     }
 
     /**
@@ -177,11 +216,11 @@ class ResponseFormatService
         // This is a simplified example. In a real implementation,
         // this would connect to an AI service to format the response
         $formatted = 'This is a test formatted response for: ' . $prompt;
-        
-        // Apply some basic formatting based on the format content
-        if (strpos($format->content, '{{bullet_points}}') !== false) {
+
+        // Apply some basic formatting based on the format template
+        if (strpos($format->template, '{{bullet_points}}') !== false) {
             $formatted = "• Point 1 about $prompt\n• Point 2 about $prompt\n• Point 3 about $prompt";
-        } elseif (strpos($format->content, '{{steps}}') !== false) {
+        } elseif (strpos($format->template, '{{steps}}') !== false) {
             $formatted = "Step 1: Introduction to $prompt\nStep 2: Details about $prompt\nStep 3: Conclusion about $prompt";
         }
 

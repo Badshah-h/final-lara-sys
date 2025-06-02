@@ -17,9 +17,11 @@ class ResponseFormat extends Model
     protected $fillable = [
         'name',
         'description',
-        'content',
+        'template',
+        'example_output',
         'system_instructions',
         'parameters',
+        'variables',
         'is_default',
     ];
 
@@ -30,6 +32,49 @@ class ResponseFormat extends Model
      */
     protected $casts = [
         'parameters' => 'array',
+        'variables' => 'array',
         'is_default' => 'boolean',
     ];
+
+    /**
+     * The attributes that should be appended to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = ['content'];
+
+    /**
+     * Get the content attribute (alias for template for backward compatibility)
+     */
+    public function getContentAttribute(): ?string
+    {
+        return $this->template;
+    }
+
+    /**
+     * Override toArray to include frontend-compatible attributes
+     */
+    public function toArray()
+    {
+        $array = parent::toArray();
+
+        // Add camelCase isDefault
+        $array['isDefault'] = $this->is_default;
+
+        // Extract format properties from parameters
+        $parameters = $this->parameters ?? [];
+        $array['format'] = $parameters['format'] ?? 'conversational';
+        $array['length'] = $parameters['length'] ?? 'medium';
+        $array['tone'] = $parameters['tone'] ?? 'professional';
+
+        // Extract options
+        $array['options'] = [
+            'useHeadings' => $parameters['useHeadings'] ?? false,
+            'useBulletPoints' => $parameters['useBulletPoints'] ?? false,
+            'includeLinks' => $parameters['includeLinks'] ?? false,
+            'formatCodeBlocks' => $parameters['formatCodeBlocks'] ?? false,
+        ];
+
+        return $array;
+    }
 }

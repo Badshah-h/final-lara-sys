@@ -1,8 +1,15 @@
-
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
+import { apiService } from "@/services/api";
+
+interface FollowUpQuestion {
+  id: string;
+  question: string;
+  category: string;
+  isActive: boolean;
+}
 
 export interface FollowUpManagerProps {
   standalone?: boolean;
@@ -10,15 +17,45 @@ export interface FollowUpManagerProps {
 
 export const FollowUpManager = ({ standalone = false }: FollowUpManagerProps) => {
   const [isLoading, setIsLoading] = useState(false);
+  const [followUps, setFollowUps] = useState<FollowUpQuestion[]>([]);
 
-  const handleRefresh = () => {
-    setIsLoading(true);
-    
-    // Simulate API call
-    setTimeout(() => {
+  useEffect(() => {
+    const fetchFollowUps = async () => {
+      try {
+        setIsLoading(true);
+        const data = await apiService.get<FollowUpQuestion[]>('/follow-up-questions');
+        setFollowUps(data);
+      } catch (error) {
+        console.error('Failed to fetch follow-up questions:', error);
+        setFollowUps([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFollowUps();
+  }, []);
+
+  const handleRefresh = async () => {
+    try {
+      setIsLoading(true);
+      const data = await apiService.get<FollowUpQuestion[]>('/follow-up-questions');
+      setFollowUps(data);
+      toast({
+        title: "Follow-up suggestions refreshed successfully",
+        description: "Your follow-up suggestions have been refreshed.",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error('Failed to refresh follow-up questions:', error);
+      toast({
+        title: "Error",
+        description: "Failed to refresh follow-up suggestions.",
+        variant: "destructive"
+      });
+    } finally {
       setIsLoading(false);
-      toast.success("Follow-up suggestions refreshed successfully");
-    }, 800);
+    }
   };
 
   return (
@@ -31,8 +68,8 @@ export const FollowUpManager = ({ standalone = false }: FollowUpManagerProps) =>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={handleRefresh}
             disabled={isLoading}
           >
@@ -53,3 +90,5 @@ export const FollowUpManager = ({ standalone = false }: FollowUpManagerProps) =>
     </div>
   );
 };
+
+export default FollowUpManager;

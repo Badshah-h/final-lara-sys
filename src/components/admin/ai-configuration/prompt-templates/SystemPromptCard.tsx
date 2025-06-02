@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +11,8 @@ interface SystemPromptCardProps {
   isSaving: boolean;
 }
 
-export function SystemPromptCard({ 
-  systemPrompt, 
+export function SystemPromptCard({
+  systemPrompt,
   onSave,
   isSaving,
 }: SystemPromptCardProps) {
@@ -21,12 +20,12 @@ export function SystemPromptCard({
 
   useEffect(() => {
     if (systemPrompt) {
-      setContent(systemPrompt.content);
+      setContent(systemPrompt.content || "");
     }
   }, [systemPrompt]);
 
   const handleSave = () => {
-    if (content.trim()) {
+    if (content?.trim()) {
       onSave(content);
     }
   };
@@ -48,10 +47,10 @@ export function SystemPromptCard({
             onChange={(e) => setContent(e.target.value)}
           />
           <div className="flex justify-end">
-            <Button 
-              onClick={handleSave} 
+            <Button
+              onClick={handleSave}
               className="w-full md:w-auto"
-              disabled={!content.trim() || isSaving}
+              disabled={!content?.trim() || isSaving}
             >
               {isSaving ? (
                 <>

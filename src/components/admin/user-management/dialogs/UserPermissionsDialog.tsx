@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { User } from "@/types/user";
 import { PermissionCategory } from "@/types";
@@ -13,7 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { showSuccessToast, showErrorToast } from "@/lib/utils";
 
 interface UserPermissionsDialogProps {
   user: User;
@@ -32,7 +34,6 @@ export function UserPermissionsDialog({
 }: UserPermissionsDialogProps) {
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
 
   // Set initial permissions when dialog opens
   useEffect(() => {
@@ -45,18 +46,11 @@ export function UserPermissionsDialog({
     setIsLoading(true);
     try {
       await onSave(user.id, selectedPermissions);
-      toast({
-        title: "Permissions updated",
-        description: `Permissions for ${user.name} have been updated successfully.`,
-      });
+      showSuccessToast("Permissions updated", `Permissions for ${user.name} have been updated successfully.`);
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to update permissions:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update permissions. Please try again.",
-      });
+      showErrorToast("Error", "Failed to update permissions. Please try again.");
     } finally {
       setIsLoading(false);
     }

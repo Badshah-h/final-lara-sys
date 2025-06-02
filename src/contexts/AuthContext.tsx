@@ -39,7 +39,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   login: async () => false,
   register: async () => false,
-  logout: async () => {},
+  logout: async () => { },
   hasRole: () => false,
   hasPermission: () => false,
 });
@@ -53,35 +53,24 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Initialize axios with credentials
+  // Configure axios for Sanctum
   useEffect(() => {
     axios.defaults.withCredentials = true;
+    axios.defaults.headers.common['Accept'] = 'application/json';
+    axios.defaults.headers.common['Content-Type'] = 'application/json';
   }, []);
 
   // Load user on mount
   useEffect(() => {
     const loadUser = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) {
-          setIsLoading(false);
-          return;
-        }
-
-        // Set authorization header
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        // Get user data
         const response = await axios.get(`${API_BASE_URL}/user`);
         setUser(response.data);
         setIsAuthenticated(true);
-
-        // Clear any previous refresh attempts
-        localStorage.removeItem("auth_refresh_attempted");
       } catch (error) {
-        // Failed to load user
-        localStorage.removeItem("token");
-        delete axios.defaults.headers.common["Authorization"];
+        // User not authenticated
+        setUser(null);
+        setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
       }
@@ -90,23 +79,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     loadUser();
   }, []);
 
-  // Get CSRF cookie
+  // Get CSRF cookie for Sanctum
   const getCsrfCookie = async () => {
-    try {
-      // Extract the base URL without the /api suffix
-      const baseUrl = API_BASE_URL.endsWith("/api")
-        ? API_BASE_URL.substring(0, API_BASE_URL.length - 4)
-        : API_BASE_URL;
+    const baseUrl = API_BASE_URL.endsWith("/api")
+      ? API_BASE_URL.substring(0, API_BASE_URL.length - 4)
+      : API_BASE_URL;
 
-      await axios.get(`${baseUrl}/sanctum/csrf-cookie`, {
-        withCredentials: true,
-      });
-      // CSRF cookie fetched successfully
-      return true;
-    } catch (error) {
-      // Failed to get CSRF cookie
-      return false;
-    }
+    await axios.get(`${baseUrl}/sanctum/csrf-cookie`);
   };
 
   const login = async (
@@ -125,39 +104,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         remember,
       });
 
-      // Store token
-      const token =
-        response.data.data?.token ||
-        response.data.data?.access_token ||
-        response.data.token ||
-        response.data.access_token;
-
-      if (token) {
-        localStorage.setItem("token", token);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-      }
-
-      // Set user data directly from the response if available
-      if (response.data.data?.user) {
-        setUser(response.data.data.user);
+      // Set user data from response
+      if (response.data.user) {
+        setUser(response.data.user);
         setIsAuthenticated(true);
-        return response.data;
-      }
-
-      // Otherwise try to get user data separately
-      try {
-        const userResponse = await axios.get(`${API_BASE_URL}/user`);
-        setUser(userResponse.data);
-        setIsAuthenticated(true);
-      } catch (userError) {
-        // Failed to fetch user data
-        // Still return true since login was successful
       }
 
       return response.data;
     } catch (error) {
-      // Login failed
-      return false;
+      setUser(null);
+      setIsAuthenticated(false);
+      throw error;
     }
   };
 
@@ -179,41 +136,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         password_confirmation: passwordConfirmation,
       });
 
-      // Store token - check in both response.data and response.data.data
-      const token =
-        response.data.data?.token ||
-        response.data.data?.access_token ||
-        response.data.token ||
-        response.data.access_token;
-
-      if (token) {
-        localStorage.setItem("token", token);
-        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-
-        // Set user data directly from the response if available
-        if (response.data.data?.user) {
-          setUser(response.data.data.user);
-          setIsAuthenticated(true);
-          return true;
-        }
-
-        // Otherwise try to get user data separately
-        try {
-          const userResponse = await axios.get(`${API_BASE_URL}/user`);
-          setUser(userResponse.data);
-          setIsAuthenticated(true);
-          return true;
-        } catch (userError) {
-          // Failed to fetch user data after registration
-          // Still return true since registration was successful
-          return true;
-        }
+      // Set user data from response
+      if (response.data.user) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+        return true;
       }
 
       return false;
     } catch (error) {
-      // Registration failed
-      return false;
+      setUser(null);
+      setIsAuthenticated(false);
+      throw error;
     }
   };
 
@@ -221,50 +155,40 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     try {
       await axios.post(`${API_BASE_URL}/logout`);
     } catch (error) {
-      // Logout API call failed
+      // Logout failed, but we'll clear local state anyway
+      console.error('Logout error:', error);
     } finally {
-      // Always clear local state even if API call fails
-      localStorage.removeItem("token");
-      delete axios.defaults.headers.common["Authorization"];
       setUser(null);
       setIsAuthenticated(false);
     }
   };
 
-  // Modified to always return true for authenticated users
   const hasRole = (role: string): boolean => {
-    // Only check if user is logged in, ignore specific role
-    return !!user;
+    return user?.roles?.includes(role) || false;
   };
 
   const hasPermission = (permission: string): boolean => {
-    // Only check if user is logged in, ignore specific permission
-    return !!user;
+    return user?.permissions?.includes(permission) || false;
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        isLoading,
-        login,
-        register,
-        logout,
-        hasRole,
-        hasPermission,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value: AuthContextType = {
+    user,
+    isAuthenticated,
+    isLoading,
+    login,
+    register,
+    logout,
+    hasRole,
+    hasPermission,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// Define the hook as a separate function declaration first
-function useAuth() {
+export function useAuth() {
   const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 }
-
-// Export the hook separately
-export { useAuth };

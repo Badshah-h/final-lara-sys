@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { login, logout, getUser, register } from '../modules/auth/services/public-auth';
+import { login, logout, getUser, register } from '@/modules/auth/services/public-auth';
 
 const PublicAuthTest = () => {
   const [email, setEmail] = useState('');

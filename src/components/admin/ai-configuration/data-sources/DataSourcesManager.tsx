@@ -6,7 +6,6 @@ import { Switch } from "@/components/ui/switch";
 import { Search } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DataSource } from "@/services/ai-configuration/dataSourceService";
 import { DataSourcesHeader } from "./components/DataSourcesHeader";
 import { DataSourcesContent } from "./components/DataSourcesContent";
 import { DataSourceForm } from "./components/DataSourceForm";

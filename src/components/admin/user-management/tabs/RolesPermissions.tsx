@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,9 +18,9 @@ const RolesPermissions = () => {
   // Get roles data
   const {
     roles,
-    isLoadingRoles, // Correctly use isLoadingRoles from the hook
-    rolesError, // Correctly use rolesError from the hook
-    fetchRoles, // Use fetchRoles as the refresh function
+    isLoadingRoles,
+    rolesError,
+    fetchRoles,
     createRole,
     updateRole,
     deleteRole
@@ -30,18 +29,21 @@ const RolesPermissions = () => {
   // Get permission categories
   const {
     permissionCategories,
-    isLoadingPermissions
+    isLoadingPermissions,
+    permissionsError,
+    fetchPermissionCategories
   } = usePermissionManagement();
 
   // Use isLoading to combine both loading states
   const isLoading = isLoadingRoles || isLoadingPermissions;
   // Handle error state
-  const error = rolesError;
+  const error = rolesError || permissionsError;
 
-  // Load roles on component mount
+  // Load data on component mount - call functions directly without dependencies
   useEffect(() => {
     fetchRoles();
-  }, [fetchRoles]);
+    fetchPermissionCategories();
+  }, []); // Empty dependency array to run only on mount
 
   const handleEditRole = (role: Role) => {
     setSelectedRole(role);
@@ -53,56 +55,59 @@ const RolesPermissions = () => {
     setShowDeleteRoleDialog(true);
   };
 
-  const handleCreateRole = async (
-    name: string,
-    description: string,
-    permissions: string[]
-  ) => {
+  const handleCreateRole = async (name: string, description: string, permissions: string[]) => {
     try {
       await createRole(name, description, permissions);
-      return true;
+      setShowCreateRoleDialog(false);
     } catch (error) {
-      return false;
+      console.error('Error creating role:', error);
+      throw error;
     }
   };
 
-  const handleUpdateRole = async (
-    id: string,
-    name: string,
-    description: string,
-    permissions: string[]
-  ) => {
+  const handleUpdateRole = async (id: string, name: string, description: string, permissions: string[]) => {
     try {
       await updateRole(id, name, description, permissions);
-      return true;
+      setShowEditRoleDialog(false);
+      setSelectedRole(null);
     } catch (error) {
-      return false;
+      console.error('Error updating role:', error);
+      throw error;
     }
   };
 
   const handleDeleteRoleConfirm = async (id: string) => {
     try {
       await deleteRole(id);
-      return true;
+      setShowDeleteRoleDialog(false);
+      setSelectedRole(null);
     } catch (error) {
-      return false;
+      console.error('Error deleting role:', error);
+      throw error;
     }
   };
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Roles & Permissions</h2>
           <p className="text-muted-foreground">
-            Manage roles and their permissions
+            Manage user roles and their associated permissions
           </p>
         </div>
         <Button onClick={() => setShowCreateRoleDialog(true)}>
-          <PlusCircle className="w-4 h-4 mr-2" />
+          <PlusCircle className="mr-2 h-4 w-4" />
           Create Role
         </Button>
       </div>
+
+      {error && (
+        <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md">
+          <p className="font-medium">Error loading data</p>
+          <p className="text-sm">{error}</p>
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4">
@@ -111,7 +116,7 @@ const RolesPermissions = () => {
         </TabsList>
 
         <TabsContent value="roles" className="space-y-4">
-          {isLoading ? (
+          {isLoadingRoles ? (
             <div className="flex justify-center items-center py-8">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <span className="ml-2">Loading roles...</span>
@@ -134,15 +139,15 @@ const RolesPermissions = () => {
           )}
         </TabsContent>
 
-        <TabsContent value="permissions">
+        <TabsContent value="permissions" className="space-y-4">
           <div className="bg-card p-4 rounded-lg border">
             <h3 className="text-lg font-medium mb-4">Available Permissions</h3>
-            {isLoading ? (
+            {isLoadingPermissions ? (
               <div className="flex justify-center items-center py-8">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <span className="ml-2">Loading permissions...</span>
               </div>
-            ) : (
+            ) : permissionCategories && permissionCategories.length > 0 ? (
               <div className="space-y-6">
                 {permissionCategories.map((category) => (
                   <div key={category.id} className="space-y-2">
@@ -163,6 +168,10 @@ const RolesPermissions = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                No permissions found.
               </div>
             )}
           </div>

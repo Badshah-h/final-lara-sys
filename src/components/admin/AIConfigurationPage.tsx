@@ -1,18 +1,33 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Save, RefreshCw } from "lucide-react";
-import AIConfigSidebar from "./AIConfigSidebar";
+
+// Import all AI configuration components
 import AIModelManager from "./ai-configuration/AIModelManager";
-import KnowledgeBaseManager from "./ai-configuration/KnowledgeBaseManager";
-import PromptTemplateManager from "./ai-configuration/PromptTemplateManager";
-import ResponseFormatterManager from "./ai-configuration/ResponseFormatterManager";
+import PromptTemplateManager from "./ai-configuration/prompt-templates/PromptTemplateManager";
+import ResponseFormatterManager from "./ai-configuration/response-formats/ResponseFormatterManager";
+import DataSourcesManager from "./ai-configuration/data-sources/DataSourcesManager";
 import BrandingEngineManager from "./ai-configuration/BrandingEngineManager";
-import FollowUpManager from "./ai-configuration/FollowUpManager";
+import { FollowUpManager } from "./ai-configuration/FollowUpManager";
+import { apiService } from "@/services/api";
+import AIConfigSidebar from "./AIConfigSidebar";
+
+interface AIConfiguration {
+  id: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  models: any[];
+  prompts: any[];
+  dataSources: any[];
+}
 
 const AIConfigurationPage = () => {
   const [activeModule, setActiveModule] = useState("models");
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [configurations, setConfigurations] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleModuleChange = useCallback(
     (module: string) => {
@@ -28,13 +43,17 @@ const AIConfigurationPage = () => {
     [hasChanges],
   );
 
-  const handleSaveChanges = () => {
-    setIsSaving(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false);
+  const handleSaveChanges = async () => {
+    try {
+      setIsSaving(true);
+      // Save configurations via API
+      await apiService.post('/ai-configurations/save', { configurations });
       setHasChanges(false);
-    }, 1000);
+    } catch (error) {
+      console.error('Failed to save configurations:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // This would be called by child components when they make changes
@@ -47,15 +66,15 @@ const AIConfigurationPage = () => {
       case "models":
         return <AIModelManager onSave={() => setHasChanges(false)} />;
       case "knowledge-base":
-        return <KnowledgeBaseManager standalone={true} />;
+        return <DataSourcesManager />;
       case "prompts":
-        return <PromptTemplateManager standalone={true} />;
+        return <PromptTemplateManager />;
       case "formatting":
-        return <ResponseFormatterManager standalone={true} />;
+        return <ResponseFormatterManager />;
       case "branding":
-        return <BrandingEngineManager standalone={true} />;
+        return <BrandingEngineManager />;
       case "follow-up":
-        return <FollowUpManager standalone={true} />;
+        return <FollowUpManager />;
       default:
         return <AIModelManager onSave={() => setHasChanges(false)} />;
     }
@@ -98,6 +117,23 @@ const AIConfigurationPage = () => {
         return "Configure AI models and providers";
     }
   };
+
+  useEffect(() => {
+    const fetchConfigurations = async () => {
+      try {
+        setIsLoading(true);
+        const data = await apiService.get<AIConfiguration[]>('/ai-configurations');
+        setConfigurations(data);
+      } catch (error) {
+        console.error('Failed to fetch AI configurations:', error);
+        setConfigurations([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchConfigurations();
+  }, []);
 
   return (
     <div className="flex h-full">

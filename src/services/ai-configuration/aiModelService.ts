@@ -1,7 +1,5 @@
-
-import apiService from '../api/api';
-import { AIModel, ModelProvider, RoutingRule } from '@/types/ai-configuration';
-
+import { apiService } from "../api";
+import { AIModel, ModelProvider, RoutingRule } from "@/types/ai-configuration";
 /**
  * Get all AI models
  */

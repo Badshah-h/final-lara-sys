@@ -1,200 +1,155 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { JsonViewer } from "@/components/ui/json-viewer";
-import { tokenService } from "@/services/auth/tokenService";
 import { authService } from "@/services/auth/authService";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AuthDebuggerStoryboard = () => {
-  const [authState, setAuthState] = useState({
-    token: null as string | null,
-    csrfToken: null as string | null,
-    tokenExpiry: null as string | null,
-    tokenDecoded: null as any,
-    isAuthenticated: false,
-    currentUser: null as any,
-  });
+  const { user, isAuthenticated, login, logout } = useAuth();
+  const [debugInfo, setDebugInfo] = useState<any>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-  const refreshState = async () => {
-    const token = tokenService.getToken();
-    const csrfToken = tokenService.getCsrfToken();
-    let tokenDecoded = null;
-    let tokenExpiry = null;
-    let currentUser = null;
-    let isAuthenticated = false;
+  const refreshDebugInfo = async () => {
+    setIsLoading(true);
+    try {
+      const authStatus = await authService.isAuthenticated();
 
-    if (token) {
-      tokenDecoded = tokenService.decodeToken(token);
-      isAuthenticated = tokenService.validateToken();
-      if (tokenDecoded?.exp) {
-        tokenExpiry = new Date(tokenDecoded.exp * 1000).toLocaleString();
-      }
-
-      try {
-        const response = await authService.getCurrentUser();
-        currentUser = response.data;
-      } catch (error) {
-        // Error fetching current user
-      }
+      setDebugInfo({
+        isAuthenticated: authStatus,
+        user: user,
+        sessionBased: true,
+        authMethod: "Laravel Sanctum Session",
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      setDebugInfo({
+        isAuthenticated: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        authMethod: "Laravel Sanctum Session",
+        timestamp: new Date().toISOString(),
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    setAuthState({
-      token,
-      csrfToken,
-      tokenExpiry,
-      tokenDecoded,
-      isAuthenticated,
-      currentUser,
-    });
   };
 
   useEffect(() => {
-    refreshState();
-  }, []);
+    refreshDebugInfo();
+  }, [user, isAuthenticated]);
 
-  const initCsrfToken = async () => {
+  const handleTestLogin = async () => {
     try {
-      await tokenService.initCsrfToken();
-      refreshState();
+      await login("admin@example.com", "password");
+      await refreshDebugInfo();
     } catch (error) {
-      // Error initializing CSRF token
+      console.error("Test login failed:", error);
     }
   };
 
-  const clearTokens = () => {
-    tokenService.clearToken();
-    tokenService.setCsrfToken("");
-    refreshState();
+  const handleLogout = async () => {
+    try {
+      await logout();
+      await refreshDebugInfo();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (
-    <div className="bg-background min-h-screen p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6">Authentication Debugger</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>Auth Token</span>
-                <Badge variant={authState.token ? "success" : "destructive"}>
-                  {authState.token ? "Present" : "Missing"}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div>
-                  <span className="font-medium">Authenticated:</span>{" "}
-                  {authState.isAuthenticated ? "Yes" : "No"}
-                </div>
-                {authState.tokenExpiry && (
-                  <div>
-                    <span className="font-medium">Expires:</span>{" "}
-                    {authState.tokenExpiry}
-                  </div>
-                )}
-                <div className="mt-4">
-                  <Button onClick={clearTokens} variant="destructive" size="sm">
-                    Clear Tokens
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>CSRF Token</span>
-                <Badge
-                  variant={authState.csrfToken ? "success" : "destructive"}
-                >
-                  {authState.csrfToken ? "Present" : "Missing"}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {authState.csrfToken && (
-                  <div>
-                    <span className="font-medium">Token (first 10 chars):</span>{" "}
-                    {authState.csrfToken.substring(0, 10)}...
-                  </div>
-                )}
-                <div className="mt-4">
-                  <Button onClick={initCsrfToken} variant="outline" size="sm">
-                    Initialize CSRF Token
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Current User</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {authState.currentUser ? (
-                <JsonViewer
-                  data={authState.currentUser}
-                  height="200px"
-                  showCopyButton={true}
-                />
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  No user data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Decoded Token</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {authState.tokenDecoded ? (
-                <JsonViewer
-                  data={authState.tokenDecoded}
-                  height="200px"
-                  showCopyButton={true}
-                />
-              ) : (
-                <div className="text-center py-4 text-muted-foreground">
-                  No token data available
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>All Cookies</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[200px]">
-                <pre className="text-sm">
-                  {document.cookie.split(";").map((cookie) => (
-                    <div key={cookie} className="py-1 border-b border-border">
-                      {cookie.trim()}
-                    </div>
-                  ))}
-                </pre>
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-center mt-4">
-            <Button onClick={refreshState}>Refresh Data</Button>
-          </div>
-        </div>
+    <div className="p-6 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Authentication Debugger</h1>
+        <Button onClick={refreshDebugInfo} disabled={isLoading}>
+          {isLoading ? "Refreshing..." : "Refresh"}
+        </Button>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Authentication Status</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Status:</span>
+              <Badge variant={debugInfo.isAuthenticated ? "default" : "destructive"}>
+                {debugInfo.isAuthenticated ? "Authenticated" : "Not Authenticated"}
+              </Badge>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Method:</span>
+              <Badge variant="outline">{debugInfo.authMethod || "Unknown"}</Badge>
+            </div>
+
+            {debugInfo.error && (
+              <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                <p className="text-sm text-destructive">{debugInfo.error}</p>
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground">
+              Last updated: {debugInfo.timestamp}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>User Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {user ? (
+              <div className="space-y-2">
+                <div><strong>ID:</strong> {user.id}</div>
+                <div><strong>Name:</strong> {user.name}</div>
+                <div><strong>Email:</strong> {user.email}</div>
+                <div><strong>Status:</strong> {user.status || "Unknown"}</div>
+                {user.roles && user.roles.length > 0 && (
+                  <div>
+                    <strong>Roles:</strong>
+                    <div className="flex gap-1 mt-1">
+                      {user.roles.map((role) => (
+                        <Badge key={role.id} variant="secondary">
+                          {role.name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">No user data available</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Debug Actions</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button onClick={handleTestLogin} variant="outline">
+              Test Login (admin@example.com)
+            </Button>
+            <Button onClick={handleLogout} variant="outline">
+              Logout
+            </Button>
+          </div>
+
+          <div className="p-4 bg-muted rounded-md">
+            <h4 className="font-medium mb-2">Session-Based Authentication</h4>
+            <p className="text-sm text-muted-foreground">
+              This system uses Laravel Sanctum session-based authentication.
+              Authentication state is managed through HTTP-only cookies and sessions,
+              providing better security than token-based authentication.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };

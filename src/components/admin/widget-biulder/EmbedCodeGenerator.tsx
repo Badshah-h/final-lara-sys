@@ -1,14 +1,13 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Copy, Check, Code, AlertTriangle } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { showSuccessToast } from '@/lib/utils';
 
 interface EmbedCodeGeneratorProps {
   config: any;
@@ -29,7 +28,6 @@ const EmbedCodeGenerator = ({ config, aiModel = null, promptTemplate = null }: E
   const [includeAnalytics, setIncludeAnalytics] = useState(true);
   const [advancedOptions, setAdvancedOptions] = useState(false);
   const [hasSecurityIssues, setHasSecurityIssues] = useState(false);
-  const { toast } = useToast();
 
   // Generate widget unique ID based on config name
   const widgetId = config.general.name.toLowerCase().replace(/\s+/g, '-');
@@ -189,10 +187,7 @@ export default ChatWidget;`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     
-    toast({
-      title: "Copied to clipboard",
-      description: "The embed code has been copied to your clipboard.",
-    });
+    showSuccessToast("The embed code has been copied to your clipboard.");
     
     setTimeout(() => setCopied(false), 2000);
   };

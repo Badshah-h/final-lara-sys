@@ -10,6 +10,7 @@ use App\Models\ResponseFormat;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ChatSession;
 
 class WidgetService
 {
@@ -82,19 +83,19 @@ class WidgetService
         if (isset($data['name'])) {
             $widget->name = $data['name'];
         }
-        
+
         if (isset($data['description'])) {
             $widget->description = $data['description'];
         }
-        
+
         if (isset($data['type'])) {
             $widget->type = $data['type'];
         }
-        
+
         if (isset($data['status'])) {
             $widget->status = $data['status'];
         }
-        
+
         if (isset($data['configuration'])) {
             $widget->configuration = $data['configuration'];
         }
@@ -110,12 +111,12 @@ class WidgetService
         if (isset($data['response_format_id'])) {
             $widget->response_format_id = $data['response_format_id'];
         }
-        
+
         $widget->save();
 
         // Regenerate embed code if needed
-        if (isset($data['configuration']) || 
-            isset($data['ai_model_id']) || 
+        if (isset($data['configuration']) ||
+            isset($data['ai_model_id']) ||
             isset($data['prompt_template_id']) ||
             isset($data['response_format_id'])) {
             $widget->embed_code = $widget->generateEmbedCode('js');
@@ -172,7 +173,7 @@ class WidgetService
         $existingSetting = WidgetSetting::where('widget_id', $widgetId)
             ->where('key', $data['key'])
             ->first();
-        
+
         if ($existingSetting) {
             $existingSetting->value = $data['value'];
             $existingSetting->type = $data['type'] ?? 'string';
@@ -243,7 +244,7 @@ class WidgetService
                 $result = ['status' => 'warning', 'message' => 'Chat widget appearance settings are missing'];
                 return $result;
             }
-            
+
             if (!isset($config['configuration']['behavior']) || !is_array($config['configuration']['behavior'])) {
                 $result = ['status' => 'warning', 'message' => 'Chat widget behavior settings are missing'];
                 return $result;
@@ -277,51 +278,105 @@ class WidgetService
 
     /**
      * Get widget analytics
-     * 
+     *
      * @param int $widgetId
      * @return array|null
      */
     public function getWidgetAnalytics(int $widgetId): ?array
     {
         $widget = Widget::find($widgetId);
-        
+
         if (!$widget) {
             return null;
         }
-        
-        // Here we would typically query analytics data related to this widget
-        // For now we'll return a placeholder structure that would be filled with real data
+
+        // Get real analytics from ChatService
+        $chatService = app(ChatService::class);
+        $chatAnalytics = $chatService->getChatAnalytics($widgetId);
+
+        // Get additional widget-specific metrics
+        $totalViews = $this->getWidgetViews($widgetId);
+        $uniqueVisitors = $this->getUniqueVisitors($widgetId);
+        $conversionRate = $this->getConversionRate($widgetId);
+
         return [
             'interactions' => [
-                'total' => rand(100, 1000),
-                'unique_users' => rand(50, 500),
-                'average_duration' => rand(60, 300)
+                'total' => $chatAnalytics['total_sessions'],
+                'unique_users' => $uniqueVisitors,
+                'active_sessions' => $chatAnalytics['active_sessions'],
+                'ended_sessions' => $chatAnalytics['ended_sessions']
             ],
             'messages' => [
-                'total' => rand(500, 5000),
-                'user_messages' => rand(250, 2500),
-                'ai_responses' => rand(250, 2500),
-                'average_response_time' => rand(1, 5)
+                'total' => $chatAnalytics['total_messages'],
+                'user_messages' => $chatAnalytics['user_messages'],
+                'ai_responses' => $chatAnalytics['assistant_messages'],
+                'average_per_session' => $chatAnalytics['avg_messages_per_session']
             ],
             'performance' => [
-                'uptime_percentage' => rand(95, 100),
-                'error_rate' => rand(0, 5)
+                'total_views' => $totalViews,
+                'conversion_rate' => $conversionRate,
+                'engagement_rate' => $chatAnalytics['total_sessions'] > 0 ?
+                    round(($chatAnalytics['total_messages'] / $chatAnalytics['total_sessions']), 2) : 0
             ],
-            'user_satisfaction' => [
-                'rating' => rand(3, 5),
-                'feedback_count' => rand(10, 100)
-            ],
-            'top_queries' => [
-                ['query' => 'What is your pricing?', 'count' => rand(10, 50)],
-                ['query' => 'How do I get started?', 'count' => rand(10, 50)],
-                ['query' => 'Do you offer support?', 'count' => rand(10, 50)],
+            'widget_info' => [
+                'name' => $widget->name,
+                'type' => $widget->type,
+                'status' => $widget->isActive ? 'active' : 'inactive',
+                'created_at' => $widget->created_at,
+                'updated_at' => $widget->updated_at
             ]
         ];
     }
 
     /**
+     * Get widget views count
+     *
+     * @param int $widgetId
+     * @return int
+     */
+    private function getWidgetViews(int $widgetId): int
+    {
+        // This would typically come from a tracking system
+        // For now, we'll use a simple calculation based on sessions
+        $sessionCount = ChatSession::where('widget_id', $widgetId)->count();
+        // Assume 3-5 views per session on average
+        return $sessionCount * rand(3, 5);
+    }
+
+    /**
+     * Get unique visitors count
+     *
+     * @param int $widgetId
+     * @return int
+     */
+    private function getUniqueVisitors(int $widgetId): int
+    {
+        return ChatSession::where('widget_id', $widgetId)
+            ->distinct('user_id')
+            ->count('user_id');
+    }
+
+    /**
+     * Get conversion rate
+     *
+     * @param int $widgetId
+     * @return float
+     */
+    private function getConversionRate(int $widgetId): float
+    {
+        $totalViews = $this->getWidgetViews($widgetId);
+        $totalSessions = ChatSession::where('widget_id', $widgetId)->count();
+
+        if ($totalViews === 0) {
+            return 0.0;
+        }
+
+        return round(($totalSessions / $totalViews) * 100, 2);
+    }
+
+    /**
      * Get widget customization options
-     * 
+     *
      * @return array
      */
     public function getCustomizationOptions(): array

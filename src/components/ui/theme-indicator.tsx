@@ -1,10 +1,10 @@
-import { useTheme } from "@/components/ThemeProvider";
+import { useTheme } from "@/components/ui/theme-provider";
 import { Badge } from "@/components/ui/badge";
 import { Sun, Moon, Laptop, Palette } from "lucide-react";
 
 export function ThemeIndicator() {
   const { theme } = useTheme();
-  
+
   const getThemeIcon = () => {
     switch (theme) {
       case 'light':
@@ -25,7 +25,7 @@ export function ThemeIndicator() {
         return <Sun className="h-3 w-3 mr-1" />;
     }
   };
-  
+
   const getThemeColor = () => {
     switch (theme) {
       case 'light':
@@ -46,7 +46,7 @@ export function ThemeIndicator() {
         return "bg-gray-100 text-gray-800";
     }
   };
-  
+
   return (
     <Badge variant="outline" className={`flex items-center ${getThemeColor()}`}>
       {getThemeIcon()}

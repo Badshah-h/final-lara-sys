@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { PermissionCategory } from '@/types';
 import { useApi } from '@/hooks/useApi';
 
@@ -18,27 +18,28 @@ export function usePermissionManagement() {
   const fetchPermissionCategories = useCallback(async () => {
     setIsLoadingPermissions(true);
     setPermissionsError(null);
-    
+
     try {
       const response = await api.get('/permissions/categories');
-      
-      if (response.success) {
+
+      // Handle direct array response or wrapped response
+      if (Array.isArray(response)) {
+        setPermissionCategories(response);
+      } else if (response.success && response.data) {
+        setPermissionCategories(response.data);
+      } else if (response.data && Array.isArray(response.data)) {
         setPermissionCategories(response.data);
       } else {
-        setPermissionsError(response.message || 'Failed to fetch permissions');
+        setPermissionCategories(response || []);
       }
-    } catch (error) {
-      setPermissionsError('An error occurred while fetching permissions');
+    } catch (error: any) {
+      setPermissionsError(error?.response?.data?.message || 'An error occurred while fetching permissions');
       console.error('Error fetching permissions:', error);
+      setPermissionCategories([]);
     } finally {
       setIsLoadingPermissions(false);
     }
-  }, [api]);
-
-  // Fetch permission categories on mount
-  useEffect(() => {
-    fetchPermissionCategories();
-  }, [fetchPermissionCategories]);
+  }, []); // Remove api dependency to prevent infinite loop
 
   return {
     permissionCategories,

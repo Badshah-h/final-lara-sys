@@ -1,3 +1,2 @@
-
-export { usePromptTemplates } from '@/hooks/ai-configuration/usePromptTemplates';
-export { useSystemPrompt } from '@/hooks/ai-configuration/useSystemPrompt';
+export { usePromptTemplates } from '@/components/admin/ai-configuration/prompt-templates/hooks/usePromptTemplates';
+export { useSystemPrompt } from '@/components/admin/ai-configuration/prompt-templates/hooks/useSystemPrompt';

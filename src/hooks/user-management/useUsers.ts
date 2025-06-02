@@ -1,127 +1,96 @@
 /**
  * Custom hook for user management operations
  */
-import { useState, useEffect, useCallback, useRef } from "react";
-import { userService } from "@/services/user-management";
-import { User } from "@/types";
-import { UserQueryParams } from "@/services/api/types";
+import { useState, useEffect } from 'react';
+import { User } from '@/types';
+import { apiService } from '@/services/api';
 
 export function useUsers() {
   const [users, setUsers] = useState<User[]>([]);
-  const [totalUsers, setTotalUsers] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [queryParams, setQueryParams] = useState<UserQueryParams>({
-    page: 1,
-    per_page: 10,
-  });
+  const [error, setError] = useState<string | null>(null);
 
-  // Reference to the fetchUsers function to avoid circular dependencies
-  const fetchUsersRef = useRef<(params?: UserQueryParams) => Promise<any>>();
-
-  // Fetch users with current query parameters
-  const fetchUsers = useCallback(
-    async (params?: UserQueryParams) => {
+  const fetchUsers = async () => {
+    try {
       setIsLoading(true);
       setError(null);
+      const data = await apiService.get<User[]>('/users');
+      setUsers(data);
+    } catch (err) {
+      setError('Failed to fetch users');
+      console.error('Error fetching users:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      try {
-        const finalParams = params || queryParams;
-        const response = await userService.getUsers(finalParams);
+  const createUser = async (userData: Omit<User, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const newUser = await apiService.post<User>('/users', userData);
+      setUsers(prev => [...prev, newUser]);
+      return newUser;
+    } catch (err) {
+      console.error('Error creating user:', err);
+      throw err;
+    }
+  };
 
-        if (response && response.data) {
-          // Process user data to ensure consistent format
-          const processedUsers = response.data.map(user => ({
-            ...user,
-            // Ensure last_active is properly handled
-            last_active: user.last_active || null,
-            // Ensure avatar is properly handled
-            avatar: user.avatar || null,
-          }));
+  const updateUser = async (id: string, userData: Partial<User>) => {
+    try {
+      const updatedUser = await apiService.put<User>(`/users/${id}`, userData);
+      setUsers(prev => prev.map(user => user.id === id ? updatedUser : user));
+      return updatedUser;
+    } catch (err) {
+      console.error('Error updating user:', err);
+      throw err;
+    }
+  };
 
-          setUsers(processedUsers);
-          setTotalUsers(response.meta?.total || processedUsers.length);
-          setCurrentPage(response.meta?.current_page || 1);
-        } else {
-          setUsers([]);
-          setTotalUsers(0);
-        }
+  const deleteUser = async (id: string) => {
+    try {
+      await apiService.delete(`/users/${id}`);
+      setUsers(prev => prev.filter(user => user.id !== id));
+    } catch (err) {
+      console.error('Error deleting user:', err);
+      throw err;
+    }
+  };
 
-        return response;
-      } catch (err) {
-        console.error("Error fetching users:", err);
-        setError(err instanceof Error ? err : new Error(String(err)));
-        setUsers([]);
-        setTotalUsers(0);
-        return null;
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [queryParams],
-  );
+  const assignRole = async (userId: string, roleId: string) => {
+    try {
+      const updatedUser = await apiService.post<User>(`/users/${userId}/roles`, { role_id: roleId });
+      setUsers(prev => prev.map(user => user.id === userId ? updatedUser : user));
+      return updatedUser;
+    } catch (err) {
+      console.error('Error assigning role:', err);
+      throw err;
+    }
+  };
 
-  // Store the fetchUsers function in the ref to avoid circular dependencies
+  const revokeRole = async (userId: string, roleId: string) => {
+    try {
+      const updatedUser = await apiService.delete<User>(`/users/${userId}/roles/${roleId}`);
+      setUsers(prev => prev.map(user => user.id === userId ? updatedUser : user));
+      return updatedUser;
+    } catch (err) {
+      console.error('Error revoking role:', err);
+      throw err;
+    }
+  };
+
   useEffect(() => {
-    fetchUsersRef.current = fetchUsers;
-  }, [fetchUsers]);
-
-  // Initial data fetch - only when the component mounts
-  useEffect(() => {
-    // Using a ref to ensure we only fetch once on mount
-    const controller = new AbortController();
     fetchUsers();
-    return () => {
-      controller.abort();
-    };
-  }, [fetchUsers]);
-
-  // Update query parameters and fetch users
-  const updateQueryParams = useCallback(
-    (newParams: Partial<UserQueryParams>) => {
-      setQueryParams((prev) => {
-        const shouldResetPage =
-          newParams.search !== undefined ||
-          newParams.role !== undefined ||
-          newParams.status !== undefined;
-
-        const updatedParams = {
-          ...prev,
-          ...newParams,
-          page: shouldResetPage ? 1 : newParams.page || prev.page,
-        };
-
-        // Fetch users with the updated params
-        setTimeout(() => {
-          if (fetchUsersRef.current) {
-            fetchUsersRef.current(updatedParams);
-          }
-        }, 0);
-
-        return updatedParams;
-      });
-    },
-    [],
-  );
-
-  // Handle pagination
-  const goToPage = useCallback(
-    (page: number) => {
-      updateQueryParams({ page });
-    },
-    [updateQueryParams],
-  );
+  }, []);
 
   return {
     users,
-    totalUsers,
-    currentPage,
     isLoading,
     error,
     fetchUsers,
-    updateQueryParams,
-    goToPage,
-    queryParams,
+    createUser,
+    updateUser,
+    deleteUser,
+    assignRole,
+    revokeRole,
   };
 }

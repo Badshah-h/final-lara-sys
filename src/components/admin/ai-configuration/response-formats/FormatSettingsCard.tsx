@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,9 +12,9 @@ interface FormatSettingsCardProps {
   formatSettings: Partial<ResponseFormat>;
   setFormatSettings: React.Dispatch<React.SetStateAction<Partial<ResponseFormat>>>;
   handleSave: () => void;
-  onDelete: () => void;
-  isNew: boolean;
-  isLoading: boolean;
+  onDelete?: () => void;
+  isNew?: boolean;
+  isLoading?: boolean;
 }
 
 export function FormatSettingsCard({
@@ -79,7 +78,7 @@ export function FormatSettingsCard({
             className="min-h-[150px] font-mono text-sm"
           />
           <p className="text-xs text-muted-foreground">
-            Use variables like {{content}} and {{sources}} in your template.
+            Use variables like {`{{content}}`} and {`{{sources}}`} in your template.
           </p>
         </div>
 
@@ -145,7 +144,7 @@ export function FormatSettingsCard({
           disabled={
             isLoading ||
             !formatSettings.name ||
-            !formatSettings.content
+            !formatSettings.content?.trim()
           }
           className="min-w-[120px]"
         >

@@ -3,9 +3,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AIModelManager from "@/components/admin/ai-configuration/AIModelManager";
 import KnowledgeBaseManager from "@/components/admin/ai-configuration/KnowledgeBaseManager";
 import PromptTemplateManager from "@/components/admin/ai-configuration/PromptTemplateManager";
-import ResponseFormatterManager from "@/components/admin/ai-configuration/ResponseFormatterManager";
+import ResponseFormatterManager from "@/components/admin/ai-configuration/response-formats/ResponseFormatterManager";
 import BrandingEngineManager from "@/components/admin/ai-configuration/BrandingEngineManager";
-import FollowUpManager from "@/components/admin/ai-configuration/FollowUpManager";
+import { FollowUpManager } from "@/components/admin/ai-configuration/FollowUpManager";
 import {
   Bot,
   Database,
@@ -56,7 +56,7 @@ export default function AllAIModulesStoryboard() {
           </TabsContent>
 
           <TabsContent value="formatting">
-            <ResponseFormatterManager standalone={true} />
+            <ResponseFormatterManager />
           </TabsContent>
 
           <TabsContent value="branding">

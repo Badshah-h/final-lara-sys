@@ -39,8 +39,8 @@ const PromptTemplateManager = ({
 
   const {
     systemPrompt,
-    saveSystemPromptMutation,
-    handleSaveSystemPrompt,
+    isSaving,
+    saveSystemPrompt,
   } = useSystemPrompt();
 
   const hasFilters = !!(searchQuery || selectedCategory !== "all");
@@ -76,8 +76,8 @@ const PromptTemplateManager = ({
 
       <SystemPromptCard 
         systemPrompt={systemPrompt}
-        onSave={handleSaveSystemPrompt}
-        isSaving={saveSystemPromptMutation.isPending}
+        onSave={saveSystemPrompt}
+        isSaving={isSaving}
       />
 
       <AddTemplateDialog

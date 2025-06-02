@@ -83,7 +83,7 @@ class Widget extends Model
 
     /**
      * Generate the embed code for this widget
-     * 
+     *
      * @param string $format
      * @return string
      */
@@ -108,18 +108,19 @@ class Widget extends Model
      */
     private function generateJsEmbedCode(string $domain, int $widgetId): string
     {
+        $config = $this->configuration ?? [];
+        $position = $config['appearance']['position'] ?? 'bottom-right';
+        $theme = $config['appearance']['theme'] ?? 'light';
+        $autoOpen = $config['behavior']['autoOpen'] ?? false;
+
         return "<script>\n" .
-               "  (function(w,d,s,o,f,js,fjs) {\n" .
-               "    w['ChatWidget']=o;\n" .
-               "    w[o] = w[o] || function() { (w[o].q = w[o].q || []).push(arguments) };\n" .
-               "    js = d.createElement(s); js.id = o;\n" .
-               "    js.src = '{$domain}/widget.js?id={$widgetId}';\n" .
-               "    js.async = 1;\n" .
-               "    fjs = d.getElementsByTagName(s)[0];\n" .
-               "    fjs.parentNode.insertBefore(js, fjs);\n" .
-               "  }(window, document, 'script', 'cw'));\n" .
-               "  cw('init', { widgetId: '{$widgetId}' });\n" .
-               "</script>";
+               "  window.WIDGET_API_BASE_URL = '{$domain}/api';\n" .
+               "  window.WIDGET_ID = '{$widgetId}';\n" .
+               "  window.WIDGET_POSITION = '{$position}';\n" .
+               "  window.WIDGET_THEME = '{$theme}';\n" .
+               "  window.WIDGET_AUTO_OPEN = " . ($autoOpen ? 'true' : 'false') . ";\n" .
+               "</script>\n" .
+               "<script src=\"{$domain}/widget.js\" async></script>";
     }
 
     /**
@@ -127,16 +128,35 @@ class Widget extends Model
      */
     private function generateReactEmbedCode(string $domain, int $widgetId): string
     {
-        return "import { ChatWidget } from '@yourapp/chat-widget';\n\n" .
-               "const YourComponent = () => {\n" .
-               "  return (\n" .
-               "    <ChatWidget \n" .
-               "      widgetId=\"{$widgetId}\"\n" .
-               "      apiUrl=\"{$domain}/api\"\n" .
-               "    />\n" .
-               "  );\n" .
+        $config = $this->configuration ?? [];
+        $position = $config['appearance']['position'] ?? 'bottom-right';
+        $theme = $config['appearance']['theme'] ?? 'light';
+        $autoOpen = $config['behavior']['autoOpen'] ?? false;
+
+        return "import React, { useEffect } from 'react';\n\n" .
+               "const ChatWidget = () => {\n" .
+               "  useEffect(() => {\n" .
+               "    // Set widget configuration\n" .
+               "    window.WIDGET_API_BASE_URL = '{$domain}/api';\n" .
+               "    window.WIDGET_ID = '{$widgetId}';\n" .
+               "    window.WIDGET_POSITION = '{$position}';\n" .
+               "    window.WIDGET_THEME = '{$theme}';\n" .
+               "    window.WIDGET_AUTO_OPEN = " . ($autoOpen ? 'true' : 'false') . ";\n\n" .
+               "    // Load widget script\n" .
+               "    const script = document.createElement('script');\n" .
+               "    script.src = '{$domain}/widget.js';\n" .
+               "    script.async = true;\n" .
+               "    document.body.appendChild(script);\n\n" .
+               "    return () => {\n" .
+               "      // Cleanup widget on unmount\n" .
+               "      const widget = document.getElementById('chat-widget');\n" .
+               "      if (widget) widget.remove();\n" .
+               "      document.body.removeChild(script);\n" .
+               "    };\n" .
+               "  }, []);\n\n" .
+               "  return null;\n" .
                "};\n\n" .
-               "export default YourComponent;";
+               "export default ChatWidget;";
     }
 
     /**
@@ -146,12 +166,13 @@ class Widget extends Model
     {
         $width = $this->configuration['appearance']['widgetWidth'] ?? 350;
         $height = $this->configuration['appearance']['widgetHeight'] ?? 500;
-        
+
         return "<iframe\n" .
-               "  src=\"{$domain}/widget/{$widgetId}\"\n" .
+               "  src=\"{$domain}/widget-iframe/{$widgetId}\"\n" .
                "  width=\"{$width}\"\n" .
                "  height=\"{$height}\"\n" .
                "  frameborder=\"0\"\n" .
+               "  style=\"border: none; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1);\"\n" .
                "  allow=\"microphone; camera\"\n" .
                "></iframe>";
     }

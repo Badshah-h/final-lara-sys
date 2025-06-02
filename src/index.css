@@ -120,6 +120,38 @@
   }
 }
 
+/* Admin Layout Specific Styles */
+@layer components {
+  .admin-sidebar-backdrop {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .admin-header-backdrop {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .admin-gradient-text {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)) 60%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .admin-logo-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary)) 80%);
+  }
+
+  .admin-notification-pulse {
+    animation: notificationPulse 2s infinite;
+  }
+
+  .admin-status-online {
+    background: linear-gradient(135deg, #10b981, #059669);
+  }
+}
+
 /* Animation classes */
 @layer utilities {
   .animate-fade-in {
@@ -161,6 +193,20 @@
 
   .animate-glow {
     animation: glow 2s ease-in-out infinite;
+  }
+}
+
+@keyframes notificationPulse {
+
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
   }
 }
 
@@ -273,20 +319,6 @@
 
   50% {
     opacity: 0.8;
-  }
-}
-
-@keyframes float {
-  0% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-5px);
-  }
-
-  100% {
-    transform: translateY(0px);
   }
 }
 

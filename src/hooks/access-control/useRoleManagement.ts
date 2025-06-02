@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Role } from '@/types';
 import { useApi } from '@/hooks/useApi';
 
@@ -18,22 +18,28 @@ export function useRoleManagement() {
   const fetchRoles = useCallback(async () => {
     setIsLoadingRoles(true);
     setRolesError(null);
-    
+
     try {
       const response = await api.get('/roles');
-      
-      if (response.success) {
+
+      // Handle direct array response or wrapped response
+      if (Array.isArray(response)) {
+        setRoles(response);
+      } else if (response.success && response.data) {
+        setRoles(response.data);
+      } else if (response.data && Array.isArray(response.data)) {
         setRoles(response.data);
       } else {
-        setRolesError(response.message || 'Failed to fetch roles');
+        setRoles(response || []);
       }
-    } catch (error) {
-      setRolesError('An error occurred while fetching roles');
+    } catch (error: any) {
+      setRolesError(error?.response?.data?.message || 'An error occurred while fetching roles');
       console.error('Error fetching roles:', error);
+      setRoles([]);
     } finally {
       setIsLoadingRoles(false);
     }
-  }, [api]);
+  }, []); // Remove api dependency to prevent infinite loop
 
   /**
    * Create a new role
@@ -45,19 +51,20 @@ export function useRoleManagement() {
         description,
         permissions
       });
-      
-      if (response.success) {
+
+      // Handle different response formats
+      if (response.success || response.message) {
         // Refresh the roles list
         await fetchRoles();
         return true;
       } else {
         throw new Error(response.message || 'Failed to create role');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating role:', error);
-      throw error;
+      throw new Error(error?.response?.data?.message || error.message || 'Failed to create role');
     }
-  }, [api, fetchRoles]);
+  }, [fetchRoles]);
 
   /**
    * Update an existing role
@@ -69,19 +76,20 @@ export function useRoleManagement() {
         description,
         permissions
       });
-      
-      if (response.success) {
+
+      // Handle different response formats
+      if (response.success || response.message) {
         // Refresh the roles list
         await fetchRoles();
         return true;
       } else {
         throw new Error(response.message || 'Failed to update role');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating role:', error);
-      throw error;
+      throw new Error(error?.response?.data?.message || error.message || 'Failed to update role');
     }
-  }, [api, fetchRoles]);
+  }, [fetchRoles]);
 
   /**
    * Delete a role
@@ -89,19 +97,20 @@ export function useRoleManagement() {
   const deleteRole = useCallback(async (id: string) => {
     try {
       const response = await api.delete(`/roles/${id}`);
-      
-      if (response.success) {
+
+      // Handle different response formats
+      if (response.success || response.message) {
         // Refresh the roles list
         await fetchRoles();
         return true;
       } else {
         throw new Error(response.message || 'Failed to delete role');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting role:', error);
-      throw error;
+      throw new Error(error?.response?.data?.message || error.message || 'Failed to delete role');
     }
-  }, [api, fetchRoles]);
+  }, [fetchRoles]);
 
   return {
     roles,

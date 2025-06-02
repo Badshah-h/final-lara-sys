@@ -1,15 +1,7 @@
-
-import { useState } from 'react';
-
-export interface PromptTemplate {
-  id: string;
-  name: string;
-  description: string;
-  template: string;
-  category: string;
-  isDefault?: boolean;
-  variables?: string[];
-}
+import { useState, useEffect } from 'react';
+import { PromptTemplate } from '@/types/ai-configuration';
+import { apiService } from '@/services/api';
+import { showSuccessToast, showErrorToast } from '@/lib/utils';
 
 export function usePromptTemplates() {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
@@ -19,42 +11,45 @@ export function usePromptTemplates() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [categories, setCategories] = useState(['General', 'Customer Support', 'Sales']);
+  const [categories] = useState([
+    { id: 'all', name: 'All Categories' },
+    { id: 'general', name: 'General' },
+    { id: 'customer-support', name: 'Customer Support' },
+    { id: 'sales', name: 'Sales' }
+  ]);
 
-  // Mock functions that would normally interact with an API
   const fetchTemplates = async () => {
-    setIsLoading(true);
-    // Simulating API call
-    setTimeout(() => {
-      setTemplates([
-        {
-          id: '1',
-          name: 'General Introduction',
-          description: 'A friendly introduction for general inquiries',
-          template: 'Hello! I\'m an AI assistant here to help with {{topic}}. How can I assist you today?',
-          category: 'General',
-          isDefault: true,
-          variables: ['topic']
-        },
-        {
-          id: '2',
-          name: 'Support Greeting',
-          description: 'Introduction for customer support inquiries',
-          template: 'Hello {{name}}, welcome to our support! I\'ll help you resolve your issue with {{product}}.',
-          category: 'Customer Support',
-          variables: ['name', 'product']
-        },
-        {
-          id: '3',
-          name: 'Sales Follow-up',
-          description: 'Template for sales follow-up conversations',
-          template: 'Hi {{name}}, I noticed you were interested in {{product}}. Would you like more information about its {{feature}} capabilities?',
-          category: 'Sales',
-          variables: ['name', 'product', 'feature']
-        }
-      ]);
+    try {
+      setIsLoading(true);
+      const response = await apiService.get<any>('/prompt-templates');
+
+      // Handle different response structures
+      let templatesData: PromptTemplate[] = [];
+      if (Array.isArray(response)) {
+        templatesData = response;
+      } else if (response.data && Array.isArray(response.data)) {
+        templatesData = response.data;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        templatesData = response.data.data;
+      }
+
+      setTemplates(templatesData);
+    } catch (error) {
+      console.error('Failed to fetch prompt templates:', error);
+      showErrorToast('Error', 'Failed to load prompt templates');
+      setTemplates([]);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
+  };
+
+  const handleRefresh = () => {
+    fetchTemplates();
+  };
+
+  const handleAddTemplate = () => {
+    setCurrentTemplate(null);
+    setShowAddDialog(true);
   };
 
   const handleEditTemplate = (template: PromptTemplate) => {
@@ -63,44 +58,100 @@ export function usePromptTemplates() {
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    // Mock delete operation
-    setTemplates(templates.filter(template => template.id !== id));
+    try {
+      await apiService.delete(`/prompt-templates/${id}`);
+      setTemplates(prev => Array.isArray(prev) ? prev.filter(template => template.id !== id) : []);
+      showSuccessToast('Success', 'Template deleted successfully');
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      showErrorToast('Error', 'Failed to delete template');
+      throw error;
+    }
   };
 
-  const handleSaveTemplate = async (templateData: Partial<PromptTemplate>) => {
-    if (currentTemplate) {
-      // Edit existing template
-      setTemplates(templates.map(t => 
-        t.id === currentTemplate.id ? { ...t, ...templateData } as PromptTemplate : t
-      ));
+  const handleCloneTemplate = async (template: PromptTemplate) => {
+    try {
+      const clonedData = {
+        ...template,
+        name: `${template.name} (Copy)`,
+        isDefault: false,
+      };
+      delete (clonedData as any).id;
+
+      const newTemplate = await apiService.post<PromptTemplate>('/prompt-templates', clonedData);
+      setTemplates(prev => Array.isArray(prev) ? [...prev, newTemplate] : [newTemplate]);
+      showSuccessToast('Success', `Template "${template.name}" copied successfully`);
+    } catch (error) {
+      console.error('Failed to clone template:', error);
+      showErrorToast('Error', 'Failed to copy template');
+      throw error;
+    }
+  };
+
+  const handleSaveNewTemplate = async (templateData: Partial<PromptTemplate>) => {
+    try {
+      const newTemplate = await apiService.post<PromptTemplate>('/prompt-templates', templateData);
+      setTemplates(prev => Array.isArray(prev) ? [...prev, newTemplate] : [newTemplate]);
+      setShowAddDialog(false);
+      showSuccessToast('Success', 'Template created successfully');
+    } catch (error) {
+      console.error('Failed to create template:', error);
+      showErrorToast('Error', 'Failed to create template');
+      throw error;
+    }
+  };
+
+  const handleSaveEditedTemplate = async (id: string, templateData: Partial<PromptTemplate>) => {
+    try {
+      const updatedTemplate = await apiService.put<PromptTemplate>(`/prompt-templates/${id}`, templateData);
+      setTemplates(prev => Array.isArray(prev) ? prev.map(t => t.id === id ? updatedTemplate : t) : [updatedTemplate]);
       setShowEditDialog(false);
       setCurrentTemplate(null);
-    } else {
-      // Add new template
-      const newTemplate = {
-        id: Date.now().toString(),
-        ...templateData,
-      } as PromptTemplate;
-      
-      setTemplates([...templates, newTemplate]);
-      setShowAddDialog(false);
+      showSuccessToast('Success', 'Template updated successfully');
+    } catch (error) {
+      console.error('Failed to update template:', error);
+      showErrorToast('Error', 'Failed to update template');
+      throw error;
     }
   };
 
   const extractVariables = (template: string): string[] => {
-    const regex = /\{\{([^}]+)\}\}/g;
+    const regex = /\{([^}]+)\}/g;
     const variables: string[] = [];
     let match;
-    
+
     while ((match = regex.exec(template)) !== null) {
       variables.push(match[1].trim());
     }
-    
-    return [...new Set(variables)]; // Remove duplicates
+
+    return [...new Set(variables)];
   };
 
+  const createTemplateMutation = {
+    isPending: false,
+  };
+
+  const updateTemplateMutation = {
+    isPending: false,
+  };
+
+  // Ensure templates is always an array before filtering
+  const templatesArray = Array.isArray(templates) ? templates : [];
+
+  // Filter templates based on search and category
+  const filteredTemplates = templatesArray.filter(template => {
+    const matchesSearch = (template.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+      (template.description?.toLowerCase() || '').includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || template.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
   return {
-    templates,
+    templates: filteredTemplates,
     isLoading,
     currentTemplate,
     showAddDialog,
@@ -112,10 +163,16 @@ export function usePromptTemplates() {
     setShowEditDialog,
     setSearchQuery,
     setSelectedCategory,
+    handleRefresh,
+    handleAddTemplate,
     handleEditTemplate,
     handleDeleteTemplate,
-    handleSaveTemplate,
+    handleCloneTemplate,
+    handleSaveNewTemplate,
+    handleSaveEditedTemplate,
     fetchTemplates,
     extractVariables,
+    createTemplateMutation,
+    updateTemplateMutation,
   };
 }

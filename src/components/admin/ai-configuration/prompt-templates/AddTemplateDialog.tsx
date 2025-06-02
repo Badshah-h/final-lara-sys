@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { PromptTemplate, PromptVariable } from "@/types/ai-configuration";
+import { PromptTemplate } from "@/types/ai-configuration";
 
 interface CategoryOption {
   id: string;
@@ -54,12 +53,9 @@ export const AddTemplateDialog = ({
   const handleSave = () => {
     if (newTemplate.name && newTemplate.template) {
       const variableMatches = newTemplate.template.match(/\{([^}]+)\}/g) || [];
-      const extractedVariables: PromptVariable[] = variableMatches.map((v) => ({
-        name: v.replace(/[{}]/g, ""),
-        description: "",
-        required: true,
-        defaultValue: "",
-      }));
+      const extractedVariables: string[] = variableMatches.map((v) =>
+        v.replace(/[{}]/g, "")
+      );
 
       onSave({
         ...newTemplate,

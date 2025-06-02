@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Trash2, Save, Eye, FileUp, Edit, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/use-toast";
 import { DocumentCategory, KnowledgeDocument, UpdateDocumentRequest } from "@/types/knowledge-base";
 import KnowledgeBaseService from "@/services/knowledge-base/knowledgeBaseService";
 import { formatDistanceToNow } from "date-fns";
@@ -66,11 +66,17 @@ export const DocumentDetail = ({ documentId, categories, onDelete }: DocumentDet
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['knowledgeBase', 'document', documentId] });
       queryClient.invalidateQueries({ queryKey: ['knowledgeBase', 'documents'] });
-      toast.success("Document updated successfully");
+      toast({
+        title: "Document updated successfully",
+        description: "The document has been updated successfully",
+      });
       setIsEditing(false);
     },
     onError: (error: any) => {
-      toast.error(`Failed to update document: ${error.message || "Unknown error"}`);
+      toast({
+        title: "Failed to update document",
+        description: `Failed to update document: ${error.message || "Unknown error"}`,
+      });
     }
   });
 

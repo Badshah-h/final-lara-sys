@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         // Create knowledge_documents table
+        if (!Schema::hasTable('knowledge_documents')) {
         Schema::create('knowledge_documents', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('title');
@@ -37,7 +38,8 @@ return new class extends Migration
             $table->enum('priority', ['low', 'medium', 'high', 'exclusive'])->default('medium');
             $table->boolean('include_citations')->default(true);
             $table->timestamps();
-        });
+            });
+        }
     }
 
     /**

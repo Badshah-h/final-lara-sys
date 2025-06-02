@@ -157,3 +157,5 @@ export function CsrfDebugger() {
     </Card>
   );
 }
+
+export default CsrfDebugger;

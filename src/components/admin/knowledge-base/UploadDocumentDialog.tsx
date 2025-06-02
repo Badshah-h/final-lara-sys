@@ -1,4 +1,3 @@
-
 import { useState, ChangeEvent } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,7 @@ export const UploadDocumentDialog = ({
   const [file, setFile] = useState<File | null>(null);
   const [fileContent, setFileContent] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Reset form when dialog opens/closes
   const handleOpenChange = (open: boolean) => {
@@ -50,14 +50,15 @@ export const UploadDocumentDialog = ({
     setFile(null);
     setFileContent("");
     setUploadProgress(0);
+    setIsUploading(false);
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
-    
+
     setFile(selectedFile);
-    
+
     // If it's a text file, try to read its contents
     if (selectedFile.type === 'text/plain' || selectedFile.name.endsWith('.txt')) {
       const reader = new FileReader();
@@ -72,32 +73,66 @@ export const UploadDocumentDialog = ({
     }
   };
 
-  const handleUpload = () => {
-    // Split comma-separated tags into an array
-    const tagsArray = tags
-      ? tags.split(',').map((tag) => tag.trim()).filter(Boolean)
-      : [];
+  const handleUpload = async () => {
+    if (!file) return;
 
-    const documentData: CreateDocumentRequest = {
-      title,
-      description,
-      content: fileContent,
-      categoryId: categoryId || undefined,
-      tags: tagsArray,
-      file
-    };
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
 
-    // Simulate upload progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        // Call the actual upload function
-        onUpload(documentData);
-      }
-    }, 100);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title);
+      formData.append('description', description);
+      formData.append('category', categoryId);
+      formData.append('tags', tags);
+
+      // Use XMLHttpRequest to track upload progress
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (event) => {
+        if (event.lengthComputable) {
+          const progress = Math.round((event.loaded / event.total) * 100);
+          setUploadProgress(progress);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          onUpload({
+            title,
+            description,
+            content: fileContent,
+            categoryId: categoryId || undefined,
+            tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean),
+            file
+          });
+          onOpenChange(false);
+          setFile(null);
+          setTitle('');
+          setDescription('');
+          setCategoryId('');
+          setTags('');
+        } else {
+          throw new Error('Upload failed');
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        throw new Error('Upload failed');
+      });
+
+      xhr.open('POST', '/api/documents/upload');
+      xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+      xhr.send(formData);
+
+    } catch (error) {
+      console.error('Upload failed:', error);
+      // Handle error
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   const isFormValid = title.trim() !== "" && (file !== null || fileContent.trim() !== "");

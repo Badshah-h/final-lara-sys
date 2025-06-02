@@ -50,7 +50,7 @@ import { getRoleBadgeVariant } from "@/utils/helpers";
 import StatusIcon from "@/components/admin/user-management/components/StatusIcon";
 import { EditUserDialog } from "@/components/admin/user-management/dialogs/EditUserDialog";
 import { DeleteUserDialog } from "@/components/admin/user-management/dialogs/DeleteUserDialog";
-import { User } from "@/types/domain";
+import { User } from "@/types";
 
 import { useRoles } from "@/hooks/access-control/useRoles";
 import { useUsers } from "@/hooks/user-management/useUsers";
@@ -245,15 +245,31 @@ const UsersList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)}>
-                        {user.role}
-                      </Badge>
+                      {/* Display roles properly - handle both roles array and backward compatibility role field */}
+                      {user.roles && user.roles.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.roles.map((role) => (
+                            <Badge key={role.id} variant={getRoleBadgeVariant(role.name)}>
+                              {role.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : user.role ? (
+                        <Badge variant={getRoleBadgeVariant(user.role)}>
+                          {user.role}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">No Role</Badge>
+                      )}
                     </TableCell>
                     <TableCell>
                       <StatusIcon status={user.status} />
                     </TableCell>
                     <TableCell>
-                      {new Date(user.lastActive).toLocaleDateString()}
+                      {user.last_active ?
+                        new Date(user.last_active).toLocaleDateString() :
+                        'Never'
+                      }
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>

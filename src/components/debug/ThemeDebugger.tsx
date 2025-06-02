@@ -1,4 +1,4 @@
-import { useTheme } from "@/components/ThemeProvider";
+import { useTheme } from "@/components/ui/theme-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeIndicator } from "@/components/ui/theme-indicator";

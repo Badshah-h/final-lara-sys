@@ -1,6 +1,4 @@
-
-import ApiService from "../api/api";
-import { ApiRequestParams } from "../api/types";
+import { useApi } from "@/hooks/useApi";
 
 export interface ActivityLog {
   id: string;
@@ -30,39 +28,107 @@ class ActivityLogService {
    * Get paginated activity logs
    */
   static async getActivityLogs(
-    params: ApiRequestParams = {}
+    params: Record<string, any> = {}
   ): Promise<ActivityLogResponse> {
-    return await ApiService.get<ActivityLogResponse>("/activity-logs", params);
+    // Create a temporary API instance
+    const api = {
+      get: async (endpoint: string) => {
+        const response = await fetch(`/api${endpoint}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      }
+    };
+
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = `/activity-logs${queryString ? `?${queryString}` : ''}`;
+    return await api.get(endpoint);
   }
 
   /**
    * Get all available action types for filtering
    */
   static async getActionTypes(): Promise<string[]> {
-    return await ApiService.get<string[]>("/activity-logs/action-types");
+    const api = {
+      get: async (endpoint: string) => {
+        const response = await fetch(`/api${endpoint}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      }
+    };
+
+    return await api.get("/activity-logs/action-types");
   }
 
   /**
    * Export activity logs as CSV
    */
   static async exportActivityLogs(
-    params: ApiRequestParams = {}
+    params: Record<string, any> = {}
   ): Promise<Blob> {
-    const response = await ApiService.getAxiosInstance().get(
-      "/activity-logs/export",
-      {
-        params,
-        responseType: "blob",
+    const queryString = new URLSearchParams(params).toString();
+    const endpoint = `/api/activity-logs/export${queryString ? `?${queryString}` : ''}`;
+
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Accept': 'text/csv',
       }
-    );
-    return response.data;
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.blob();
   }
 
   /**
    * Get activity log by ID
    */
   static async getActivityLog(id: string): Promise<ActivityLog> {
-    return await ApiService.get<ActivityLog>(`/activity-logs/${id}`);
+    const api = {
+      get: async (endpoint: string) => {
+        const response = await fetch(`/api${endpoint}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+      }
+    };
+
+    return await api.get(`/activity-logs/${id}`);
   }
 }
 

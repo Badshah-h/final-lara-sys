@@ -1,4 +1,3 @@
-
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
@@ -50,7 +49,6 @@ export const TemplateSearch = ({
             <SelectValue placeholder="Filter by category" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
             {categoryOptions.map((category) => (
               <SelectItem key={category.id} value={category.id}>
                 {category.name}

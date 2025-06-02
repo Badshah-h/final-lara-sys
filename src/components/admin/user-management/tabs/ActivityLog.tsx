@@ -17,7 +17,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import activityLogService from "@/services/activity/activityLogService";
+import ActivityLogService from "@/services/activity/activityLogService";
 
 const ActivityLog = () => {
   const [activityLogs, setActivityLogs] = useState([]);
@@ -30,7 +30,7 @@ const ActivityLog = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await activityLogService.getActivityLogs({ page: currentPage });
+      const response = await ActivityLogService.getActivityLogs({ page: currentPage });
       setActivityLogs(response.data);
       setTotalLogs(response.meta?.total || response.data.length);
     } catch (err) {
@@ -51,8 +51,19 @@ const ActivityLog = () => {
   }, [currentPage]);
 
   const exportLogs = async (format) => {
-    console.log(`Exporting logs in ${format} format`);
-    return Promise.resolve();
+    try {
+      const blob = await ActivityLogService.exportActivityLogs();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `activity-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error("Error exporting activity logs:", err);
+    }
   };
 
   const goToPage = (page) => {

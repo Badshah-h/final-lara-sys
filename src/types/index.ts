@@ -45,7 +45,7 @@ export interface Role {
   name: string;
   description: string;
   userCount: number;
-  permissions: string[];
+  permissions: (string | number)[];
 }
 
 // Activity Log Domain

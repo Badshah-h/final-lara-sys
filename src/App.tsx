@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { useRoutes, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
-import Home from "./components/home";
+import AdminLayout from "./components/admin/AdminLayout";
 import LandingPage from "./components/landing/LandingPage";
 import WidgetPreview from "./components/WidgetPreview";
 import LoginPage from "./components/auth/LoginPage";
@@ -32,7 +32,7 @@ function App() {
               path="/dashboard"
               element={
                 <ProtectedRoute>
-                  <Home />
+                  <AdminLayout />
                 </ProtectedRoute>
               }
             />

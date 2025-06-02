@@ -1,25 +1,23 @@
 import axios, { AxiosRequestConfig } from "axios";
-import tokenService from "@/modules/auth/services/tokenService";
 
 // Fixed API endpoint for API tests
 const BASE_URL = "/api";
 const CSRF_URL = "/sanctum/csrf-cookie";
+
+// Configure axios for Sanctum session authentication
+axios.defaults.withCredentials = true;
+axios.defaults.headers.common['Accept'] = 'application/json';
+axios.defaults.headers.common['Content-Type'] = 'application/json';
 
 // API tester functions
 export const apiTester = {
   get: async (endpoint: string, params?: any) => {
     try {
       const url = `${BASE_URL}${endpoint}`;
-      const config: AxiosRequestConfig = { params };
-
-      // Add auth token if available
-      const token = tokenService.getToken();
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        };
-      }
+      const config: AxiosRequestConfig = {
+        params,
+        withCredentials: true
+      };
 
       const response = await axios.get(url, config);
       return {
@@ -41,16 +39,9 @@ export const apiTester = {
   post: async (endpoint: string, data?: any) => {
     try {
       const url = `${BASE_URL}${endpoint}`;
-      const config: AxiosRequestConfig = {};
-
-      // Add auth token if available
-      const token = tokenService.getToken();
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        };
-      }
+      const config: AxiosRequestConfig = {
+        withCredentials: true
+      };
 
       const response = await axios.post(url, data, config);
       return {
@@ -72,16 +63,9 @@ export const apiTester = {
   put: async (endpoint: string, data?: any) => {
     try {
       const url = `${BASE_URL}${endpoint}`;
-      const config: AxiosRequestConfig = {};
-
-      // Add auth token if available
-      const token = tokenService.getToken();
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        };
-      }
+      const config: AxiosRequestConfig = {
+        withCredentials: true
+      };
 
       const response = await axios.put(url, data, config);
       return {
@@ -103,16 +87,9 @@ export const apiTester = {
   delete: async (endpoint: string) => {
     try {
       const url = `${BASE_URL}${endpoint}`;
-      const config: AxiosRequestConfig = {};
-
-      // Add auth token if available
-      const token = tokenService.getToken();
-      if (token) {
-        config.headers = {
-          ...config.headers,
-          Authorization: `Bearer ${token}`,
-        };
-      }
+      const config: AxiosRequestConfig = {
+        withCredentials: true
+      };
 
       const response = await axios.delete(url, config);
       return {
@@ -131,7 +108,7 @@ export const apiTester = {
     }
   },
 
-  // Initialize CSRF token for Laravel
+  // Initialize CSRF token for Laravel Sanctum
   initCsrf: async () => {
     try {
       // Make a request to the Laravel CSRF endpoint

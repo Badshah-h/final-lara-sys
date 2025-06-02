@@ -2,13 +2,15 @@
 import apiService from '../api/api';
 import { ChatWidget, WidgetSettings } from '@/types/chat';
 import { WidgetAnalytics, CustomizationOptions } from '@/types/analytics';
+import { LaravelPaginatedResponse } from '../api/types';
 
 /**
  * Get all chat widgets
  * @returns Array of chat widgets
  */
 export const getAllWidgets = async (): Promise<ChatWidget[]> => {
-  return apiService.get<ChatWidget[]>('/widgets');
+  const response = await apiService.get<LaravelPaginatedResponse<ChatWidget>>('/widgets');
+  return response.data; // Extract the actual array from the paginated response
 };
 
 /**

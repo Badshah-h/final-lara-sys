@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import {
   AlertDialog,
@@ -10,63 +9,95 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useAuth, tokenService } from "@/modules/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { authService } from "@/services/auth/authService";
 
-// How many seconds before expiration to show the warning
-const WARNING_THRESHOLD = 5 * 60; // 5 minutes
+// How many minutes of inactivity before showing warning
+const INACTIVITY_WARNING = 25; // 25 minutes
+const SESSION_TIMEOUT = 30; // 30 minutes
 
 const SessionExpirationModal = () => {
   const [open, setOpen] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const { refreshAuth, logout } = useAuth();
+  const [minutesLeft, setMinutesLeft] = useState(0);
+  const { user, logout } = useAuth();
+  const [lastActivity, setLastActivity] = useState(Date.now());
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
 
-    const checkTokenExpiration = () => {
-      // Get token and check if it exists
-      const token = tokenService.getToken();
-      if (!token) return;
+    // Track user activity
+    const updateActivity = () => {
+      setLastActivity(Date.now());
+    };
 
-      // Decode the token to get expiration
-      const decoded = tokenService.decodeToken(token);
-      if (!decoded || !decoded.exp) return;
+    // Add event listeners for user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, true);
+    });
 
-      // Calculate time until expiration in seconds
-      const currentTime = Math.floor(Date.now() / 1000);
-      const timeUntilExpiry = decoded.exp - currentTime;
+    const checkSessionExpiration = async () => {
+      // Only check if user is logged in
+      if (!user) return;
+
+      const currentTime = Date.now();
+      const inactiveTime = Math.floor((currentTime - lastActivity) / (1000 * 60)); // minutes
 
       // If within warning threshold, show dialog
-      if (timeUntilExpiry > 0 && timeUntilExpiry <= WARNING_THRESHOLD) {
-        setSecondsLeft(timeUntilExpiry);
+      if (inactiveTime >= INACTIVITY_WARNING && inactiveTime < SESSION_TIMEOUT) {
+        const timeLeft = SESSION_TIMEOUT - inactiveTime;
+        setMinutesLeft(timeLeft);
         setOpen(true);
-      } else if (timeUntilExpiry <= 0) {
-        // Token already expired
-        logout();
+      } else if (inactiveTime >= SESSION_TIMEOUT) {
+        // Session expired due to inactivity
+        try {
+          // Check if session is still valid on server
+          const isAuthenticated = await authService.isAuthenticated();
+          if (!isAuthenticated) {
+            logout();
+          } else {
+            // Reset activity if server session is still valid
+            setLastActivity(Date.now());
+          }
+        } catch (error) {
+          // If we can't check, assume session expired
+          logout();
+        }
       }
     };
 
     // Initial check
-    checkTokenExpiration();
+    checkSessionExpiration();
 
-    // Set up interval to check token expiration
+    // Set up interval to check session expiration
     intervalId = setInterval(() => {
-      checkTokenExpiration();
+      checkSessionExpiration();
 
       // Update countdown if modal is open
       if (open) {
-        setSecondsLeft(prev => Math.max(0, prev - 10));
+        const currentTime = Date.now();
+        const inactiveTime = Math.floor((currentTime - lastActivity) / (1000 * 60));
+        const timeLeft = Math.max(0, SESSION_TIMEOUT - inactiveTime);
+        setMinutesLeft(timeLeft);
+
+        if (timeLeft <= 0) {
+          logout();
+          setOpen(false);
+        }
       }
-    }, 10000); // Check every 10 seconds
+    }, 60000); // Check every minute
 
     return () => {
       clearInterval(intervalId);
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity, true);
+      });
     };
-  }, [logout, open]);
+  }, [user, logout, open, lastActivity]);
 
-  const handleExtend = async () => {
-    // Refresh authentication
-    await refreshAuth();
+  const handleStayLoggedIn = () => {
+    // Reset activity timer
+    setLastActivity(Date.now());
     setOpen(false);
   };
 
@@ -75,11 +106,12 @@ const SessionExpirationModal = () => {
     setOpen(false);
   };
 
-  // Format seconds into mm:ss
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  // Format minutes
+  const formatTime = (minutes: number) => {
+    if (minutes <= 1) {
+      return "less than 1 minute";
+    }
+    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
   };
 
   return (
@@ -88,13 +120,13 @@ const SessionExpirationModal = () => {
         <AlertDialogHeader>
           <AlertDialogTitle>Your session is about to expire</AlertDialogTitle>
           <AlertDialogDescription>
-            For security reasons, your session will expire in {formatTime(secondsLeft)}.
-            Do you want to extend your session?
+            Due to inactivity, your session will expire in {formatTime(minutesLeft)}.
+            Do you want to stay logged in?
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={handleLogout}>Logout</AlertDialogCancel>
-          <AlertDialogAction onClick={handleExtend}>Stay logged in</AlertDialogAction>
+          <AlertDialogAction onClick={handleStayLoggedIn}>Stay logged in</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

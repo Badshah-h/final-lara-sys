@@ -1,6 +1,7 @@
 
 import apiService from '../api/api';
 import { PromptTemplate, PromptTemplateCategory } from '@/types/ai-configuration';
+import { LaravelPaginatedResponse } from '../api/types';
 
 /**
  * Service for managing prompt templates
@@ -12,7 +13,8 @@ import { PromptTemplate, PromptTemplateCategory } from '@/types/ai-configuration
  * @returns Array of prompt templates
  */
 export const getAllTemplates = async (): Promise<PromptTemplate[]> => {
-  return apiService.get<PromptTemplate[]>('/ai/prompt-templates');
+  const response = await apiService.get<LaravelPaginatedResponse<PromptTemplate>>('/prompt-templates');
+  return response.data; // Extract the actual array from the paginated response
 };
 
 /**
@@ -21,7 +23,7 @@ export const getAllTemplates = async (): Promise<PromptTemplate[]> => {
  * @returns The prompt template
  */
 export const getTemplateById = async (id: string): Promise<PromptTemplate> => {
-  return apiService.get<PromptTemplate>(`/ai/prompt-templates/${id}`);
+  return apiService.get<PromptTemplate>(`/prompt-templates/${id}`);
 };
 
 /**
@@ -29,7 +31,7 @@ export const getTemplateById = async (id: string): Promise<PromptTemplate> => {
  * @returns Array of template categories
  */
 export const getCategories = async (): Promise<PromptTemplateCategory[]> => {
-  return apiService.get<PromptTemplateCategory[]>('/ai/prompt-templates/categories');
+  return apiService.get<PromptTemplateCategory[]>('/prompt-templates/categories/list');
 };
 
 /**
@@ -38,7 +40,7 @@ export const getCategories = async (): Promise<PromptTemplateCategory[]> => {
  * @returns The created template
  */
 export const createTemplate = async (data: Omit<PromptTemplate, 'id' | 'createdAt' | 'updatedAt' | 'usageCount'>): Promise<PromptTemplate> => {
-  return apiService.post<PromptTemplate>('/ai/prompt-templates', data);
+  return apiService.post<PromptTemplate>('/prompt-templates', data);
 };
 
 /**
@@ -48,7 +50,7 @@ export const createTemplate = async (data: Omit<PromptTemplate, 'id' | 'createdA
  * @returns The updated template
  */
 export const updateTemplate = async (id: string, data: Partial<PromptTemplate>): Promise<PromptTemplate> => {
-  return apiService.put<PromptTemplate>(`/ai/prompt-templates/${id}`, data);
+  return apiService.put<PromptTemplate>(`/prompt-templates/${id}`, data);
 };
 
 /**
@@ -56,7 +58,7 @@ export const updateTemplate = async (id: string, data: Partial<PromptTemplate>):
  * @param id The template ID
  */
 export const deleteTemplate = async (id: string): Promise<void> => {
-  return apiService.delete(`/ai/prompt-templates/${id}`);
+  return apiService.delete(`/prompt-templates/${id}`);
 };
 
 /**
@@ -65,5 +67,5 @@ export const deleteTemplate = async (id: string): Promise<void> => {
  * @returns The updated template
  */
 export const incrementUsage = async (id: string): Promise<PromptTemplate> => {
-  return apiService.post<PromptTemplate>(`/ai/prompt-templates/${id}/increment-usage`);
+  return apiService.post<PromptTemplate>(`/prompt-templates/${id}/increment-usage`);
 };

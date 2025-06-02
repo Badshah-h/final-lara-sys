@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar } from "@/components/ui/avatar";
@@ -11,6 +11,7 @@ import {
   Settings,
   User,
 } from "lucide-react";
+import { Message } from "@/types/chat";
 
 interface ChatWidgetProps {
   position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
@@ -30,13 +31,20 @@ const ChatWidget = ({
   logoUrl = "https://api.dicebear.com/7.x/avataaars/svg?seed=chat-bot",
 }: ChatWidgetProps) => {
   const [isOpen, setIsOpen] = useState(true);
-  const [messages, setMessages] = useState([
-    { id: 1, text: welcomeMessage, sender: "bot", timestamp: new Date() },
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      sessionId: 'widget-session',
+      content: welcomeMessage,
+      sender: "ai",
+      timestamp: new Date().toISOString(),
+      read: false,
+    },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [isRegistered, setIsRegistered] = useState(false);
   const [userInfo, setUserInfo] = useState({ name: "", email: "", phone: "" });
+  const [isTyping, setIsTyping] = useState(false);
 
   const positionClasses = {
     "bottom-right": "bottom-4 right-4",
@@ -45,33 +53,61 @@ const ChatWidget = ({
     "top-left": "top-4 left-4",
   };
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim()) return;
 
-    // Add user message
-    const newUserMessage = {
-      id: messages.length + 1,
-      text: inputValue,
-      sender: "user",
-      timestamp: new Date(),
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      sessionId: 'widget-session',
+      content: text,
+      sender: 'user',
+      timestamp: new Date().toISOString(),
+      read: false,
     };
 
-    setMessages([...messages, newUserMessage]);
-    setInputValue("");
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue(''); // Clear input immediately
     setIsTyping(true);
 
-    // Simulate bot response after a delay
-    setTimeout(() => {
-      const botResponse = {
-        id: messages.length + 2,
-        text: "Thank you for your message. This is a simulated response from the AI assistant.",
-        sender: "bot",
-        timestamp: new Date(),
-      };
+    try {
+      // Call actual chat API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ message: text }),
+      });
 
-      setMessages((prev) => [...prev, botResponse]);
+      if (response.ok) {
+        const data = await response.json();
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          sessionId: 'widget-session',
+          content: data.response || 'I apologize, but I encountered an error processing your request.',
+          sender: 'ai',
+          timestamp: new Date().toISOString(),
+          read: false,
+        };
+        setMessages(prev => [...prev, botMessage]);
+      } else {
+        throw new Error('Failed to get response');
+      }
+    } catch (error) {
+      console.error('Chat error:', error);
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        sessionId: 'widget-session',
+        content: 'I apologize, but I\'m currently unable to respond. Please try again later.',
+        sender: 'ai',
+        timestamp: new Date().toISOString(),
+        read: false,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleRegister = () => {
@@ -79,8 +115,8 @@ const ChatWidget = ({
     setIsRegistered(true);
   };
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   if (!isOpen) {
@@ -186,20 +222,19 @@ const ChatWidget = ({
                 className={`flex ${message.sender === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div className="flex gap-2 max-w-[80%]">
-                  {message.sender === "bot" && (
+                  {(message.sender === "ai" || message.sender === "agent") && (
                     <Avatar className="h-8 w-8">
                       <img src={logoUrl} alt={botName} />
                     </Avatar>
                   )}
                   <div>
                     <div
-                      className={`rounded-lg p-3 ${
-                        message.sender === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-card"
-                      }`}
+                      className={`rounded-lg p-3 ${message.sender === "user"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card"
+                        }`}
                     >
-                      {message.text}
+                      {message.content}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
                       {formatTime(message.timestamp)}
@@ -247,10 +282,10 @@ const ChatWidget = ({
               placeholder="Type your message..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && handleSendMessage(inputValue)}
               className="flex-1"
             />
-            <Button onClick={handleSendMessage} disabled={!inputValue.trim()}>
+            <Button onClick={() => handleSendMessage(inputValue)} disabled={!inputValue.trim()}>
               <Send className="h-4 w-4" />
             </Button>
           </div>

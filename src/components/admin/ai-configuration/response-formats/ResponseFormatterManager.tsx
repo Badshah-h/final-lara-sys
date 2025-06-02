@@ -1,8 +1,6 @@
-
 import { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { FormatSettingsCard } from './FormatSettingsCard';
 import { SavedFormatsCard } from './SavedFormatsCard';
 import { TestPromptCard } from './TestPromptCard';
@@ -10,6 +8,7 @@ import { PreviewCard } from './PreviewCard';
 import { FormatPreviewTab } from './FormatPreviewTab';
 import * as responseFormatService from '@/services/ai-configuration/responseFormatService';
 import { ResponseFormat } from '@/types/ai-configuration';
+import { showSuccessToast, showErrorToast } from '@/lib/utils';
 
 const ResponseFormatterManager = () => {
   const [activeTab, setActiveTab] = useState('settings');
@@ -20,7 +19,6 @@ const ResponseFormatterManager = () => {
   const [testPrompt, setTestPrompt] = useState('How can I help you today?');
   const [testResponse, setTestResponse] = useState('');
   const [isTestLoading, setIsTestLoading] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     loadFormats();
@@ -37,11 +35,7 @@ const ResponseFormatterManager = () => {
         setFormatSettings(defaultFormat);
       }
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load response formats',
-        variant: 'destructive',
-      });
+      showErrorToast('Error', 'Failed to load response formats');
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -58,9 +52,18 @@ const ResponseFormatterManager = () => {
     setFormatSettings({
       name: 'New Format',
       description: '',
-      template: '',
+      content: '',
       systemInstructions: '',
       parameters: {},
+      format: 'conversational',
+      length: 'medium',
+      tone: 'professional',
+      options: {
+        useHeadings: false,
+        useBulletPoints: false,
+        includeLinks: false,
+        formatCodeBlocks: false,
+      },
       isDefault: false,
     });
   };
@@ -73,27 +76,17 @@ const ResponseFormatterManager = () => {
       if (selectedFormatId) {
         // Update existing format
         savedFormat = await responseFormatService.updateFormat(selectedFormatId, formatSettings);
-        toast({
-          title: 'Success',
-          description: 'Format updated successfully',
-        });
+        showSuccessToast('Success', 'Format updated successfully');
       } else {
         // Create new format
         savedFormat = await responseFormatService.createFormat(formatSettings as Omit<ResponseFormat, 'id'>);
         setSelectedFormatId(savedFormat.id);
-        toast({
-          title: 'Success',
-          description: 'New format created successfully',
-        });
+        showSuccessToast('Success', 'New format created successfully');
       }
 
       await loadFormats();
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to save format',
-        variant: 'destructive',
-      });
+      showErrorToast('Error', 'Failed to save format');
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -102,23 +95,16 @@ const ResponseFormatterManager = () => {
 
   const handleDeleteFormat = async () => {
     if (!selectedFormatId) return;
-    
+
     try {
       setIsLoading(true);
       await responseFormatService.deleteFormat(selectedFormatId);
-      toast({
-        title: 'Success',
-        description: 'Format deleted successfully',
-      });
+      showSuccessToast('Success', 'Format deleted successfully');
       setSelectedFormatId('');
       setFormatSettings({});
       await loadFormats();
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to delete format',
-        variant: 'destructive',
-      });
+      showErrorToast('Error', 'Failed to delete format');
       console.error(error);
     } finally {
       setIsLoading(false);
@@ -127,18 +113,15 @@ const ResponseFormatterManager = () => {
 
   const handleTestFormat = async () => {
     if (!selectedFormatId || !testPrompt) return;
-    
+
     try {
       setIsTestLoading(true);
       const result = await responseFormatService.testFormat(selectedFormatId, testPrompt);
       setTestResponse(result.formatted);
       setActiveTab('preview');
+      showSuccessToast('Success', 'Format tested successfully');
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to test format',
-        variant: 'destructive',
-      });
+      showErrorToast('Error', 'Failed to test format');
       console.error(error);
     } finally {
       setIsTestLoading(false);
@@ -213,3 +196,4 @@ const ResponseFormatterManager = () => {
 };
 
 export default ResponseFormatterManager;
+

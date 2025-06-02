@@ -1,5 +1,4 @@
-
-import ApiService from '../api/api';
+import { apiService } from '../api';
 
 // Types for analytics data
 export interface AnalyticsOverview {
@@ -46,7 +45,7 @@ export const getAnalyticsOverview = async (
   if (startDate) Object.assign(params, { start_date: startDate });
   if (endDate) Object.assign(params, { end_date: endDate });
   
-  return ApiService.get<AnalyticsOverview>('/analytics/overview', { params });
+  return apiService.get<AnalyticsOverview>('/analytics/overview', { params });
 };
 
 // Get chat metrics
@@ -58,7 +57,7 @@ export const getChatMetrics = async (
   if (startDate) Object.assign(params, { start_date: startDate });
   if (endDate) Object.assign(params, { end_date: endDate });
   
-  return ApiService.get<ChatMetrics>('/analytics/chat-metrics', { params });
+  return apiService.get<ChatMetrics>('/analytics/chat-metrics', { params });
 };
 
 // Get usage metrics
@@ -71,7 +70,7 @@ export const getUsageMetrics = async (
   if (startDate) Object.assign(params, { start_date: startDate });
   if (endDate) Object.assign(params, { end_date: endDate });
   
-  return ApiService.get<UsageMetrics>('/analytics/usage-metrics', { params });
+  return apiService.get<UsageMetrics>('/analytics/usage-metrics', { params });
 };
 
 // Get performance metrics
@@ -83,7 +82,7 @@ export const getPerformanceMetrics = async (
   if (startDate) Object.assign(params, { start_date: startDate });
   if (endDate) Object.assign(params, { end_date: endDate });
   
-  return ApiService.get<PerformanceMetrics>('/analytics/performance', { params });
+  return apiService.get<PerformanceMetrics>('/analytics/performance', { params });
 };
 
 // Get user feedback
@@ -95,7 +94,7 @@ export const getUserFeedback = async (
   if (startDate) Object.assign(params, { start_date: startDate });
   if (endDate) Object.assign(params, { end_date: endDate });
   
-  return ApiService.get<UserFeedback>('/analytics/feedback', { params });
+  return apiService.get<UserFeedback>('/analytics/feedback', { params });
 };
 
 // Export analytics data
@@ -104,7 +103,7 @@ export const exportAnalyticsData = async (
   endDate: string,
   format: 'csv' | 'json' | 'excel' = 'csv'
 ): Promise<Blob> => {
-  return ApiService.get<Blob>('/analytics/export', {
+  return apiService.get<Blob>('/analytics/export', {
     params: { start_date: startDate, end_date: endDate, format },
     responseType: 'blob'
   });
